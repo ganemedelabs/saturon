@@ -1,0 +1,124 @@
+{
+    "name": "saturon",
+    "version": "0.1.1",
+    "description": "A runtime-extensible JavaScript library for parsing, converting, and manipulating colors with full CSS spec support.",
+    "type": "module",
+    "private": false,
+    "author": "ganemedelabs",
+    "license": "MIT",
+    "main": "dist/index.js",
+    "module": "dist/index.js",
+    "types": "dist/index.d.ts",
+    "exports": {
+        ".": {
+            "import": "./dist/index.js",
+            "types": "./dist/index.d.ts"
+        },
+        "./config": {
+            "import": "./dist/config.js",
+            "types": "./dist/config.d.ts"
+        },
+        "./Color": {
+            "import": "./dist/Color.js",
+            "types": "./dist/Color.d.ts"
+        },
+        "./types": {
+            "import": "./dist/types.js",
+            "types": "./dist/types.d.ts"
+        },
+        "./utils": {
+            "import": "./dist/utils.js",
+            "types": "./dist/utils.d.ts"
+        },
+        "./converters": {
+            "import": "./dist/converters.js",
+            "types": "./dist/converters.d.ts"
+        },
+        "./math": {
+            "import": "./dist/math.js",
+            "types": "./dist/math.d.ts"
+        }
+    },
+    "typesVersions": {
+        "*": {
+            "index.d.ts": [
+                "dist/index.d.ts"
+            ],
+            "config.d.ts": [
+                "dist/config.d.ts"
+            ],
+            "Color.d.ts": [
+                "dist/Color.d.ts"
+            ],
+            "types.d.ts": [
+                "dist/types.d.ts"
+            ],
+            "utils.d.ts": [
+                "dist/utils.d.ts"
+            ],
+            "converters.d.ts": [
+                "dist/converters.d.ts"
+            ],
+            "math.d.ts": [
+                "dist/math.d.ts"
+            ]
+        }
+    },
+    "sideEffects": false,
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/ganemedelabs/saturon.git"
+    },
+    "bugs": {
+        "url": "https://github.com/ganemedelabs/saturon/issues"
+    },
+    "homepage": "https://github.com/ganemedelabs/saturon#readme",
+    "scripts": {
+        "build": "tsc",
+        "test": "jest",
+        "lint": "eslint .",
+        "lint:fix": "eslint --fix .",
+        "format": "prettier --write \"./**/*.{js,ts,json}\""
+    },
+    "files": [
+        "dist",
+        "README.md",
+        "LICENSE",
+        "package.json"
+    ],
+    "keywords": [
+        "color-converter",
+        "css-colors",
+        "w3c",
+        "color",
+        "color-base",
+        "hex-color",
+        "named-color",
+        "color-function",
+        "light-dark",
+        "color-mix",
+        "transparent",
+        "contrast-color",
+        "device-cmyk",
+        "currentcolor",
+        "system-color"
+    ],
+    "devDependencies": {
+        "@eslint/compat": "^1.4.0",
+        "@eslint/eslintrc": "^3.3.1",
+        "@eslint/js": "^9.37.0",
+        "@types/jest": "^30.0.0",
+        "@types/node": "^24.6.2",
+        "@typescript-eslint/eslint-plugin": "^8.45.0",
+        "@typescript-eslint/parser": "^8.45.0",
+        "eslint": "^9.37.0",
+        "eslint-config-prettier": "^10.1.8",
+        "eslint-plugin-prettier": "^5.5.4",
+        "jest": "^30.2.0",
+        "jiti": "^2.6.1",
+        "prettier": "^3.6.2",
+        "ts-jest": "^29.4.4",
+        "ts-node": "^10.9.2",
+        "typescript": "^5.9.3"
+    }
+}
