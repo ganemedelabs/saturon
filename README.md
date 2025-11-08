@@ -12,6 +12,7 @@ A runtime-extensible JavaScript library for parsing, converting, and manipulatin
 - [Installation](#-installation)
 - [Usage](#-usage)
 - [Examples](#-examples)
+- [Documentation](#-documentation)
 - [License](#-license)
 - [Contact](#-contact)
 
@@ -36,18 +37,20 @@ npm install saturon
 import { Color } from "saturon";
 
 // Parse any CSS color string
-const color = Color.from("hsl(200 80% 40%)");
+const color = Color.from("#1481b8ff");
+
+// Access coordinates
+console.log(color.toArray()); // → [20, 129, 184, 1]
 
 // Convert to another format
-console.log(color.to("oklch")); // → "oklch(62.43% 0.18 236.79)"
+console.log(color.to("oklch", { units: true })); // → "oklch(0.57368 0.12258 238.41345deg)"
 
 // Access values in another color space
-const lab = color.in("lab").toObject();
-console.log(lab); // → { l: 52.3, a: -20.9, b: -45.1, alpha: 1 }
+console.log(color.in("lab").toObject({ precision: 1 })); // → { l: 50.5, a: -13.9, b: -37.6, alpha: 1 }
 
 // Modify components
-const hsl = color.in("hsl").with({ l: (l) => l * 1.2 });
-console.log(hsl.to("hsl", { units: true })); // → "hsl(200deg 80% 48%)"
+const modified = color.in("hsl").with({ l: (l) => l * 1.2 });
+console.log(modified.toString({ legacy: true })); // → "hsl(200, 80%, 48%)"
 ```
 
 ## 💡 Examples
@@ -57,13 +60,13 @@ console.log(hsl.to("hsl", { units: true })); // → "hsl(200deg 80% 48%)"
 ```js
 const color = Color.from("hsl(337 100% 60%)");
 console.log(color.to("rgb")); // → rgb(255 51 129)
-console.log(color.to("hex-color")); // → #ff3381ff
+console.log(color.to("hex-color")); // → #ff3381
 ```
 
 ### Manipulating Components
 
-```ts
-const color = Color.from<"hwb">("hwb(255 7% 1%)");
+```js
+const color = Color.from("hwb(255 7% 1%)");
 const hwb = color.with({ h: 100, b: (b) => b * 20 });
 console.log(hwb.toString()); // → hwb(100 7 20)
 ```
@@ -100,8 +103,12 @@ const converter = {
 
 registerColorFunction("ictcp", converter);
 const ictcp = Color.from("ictcp(0.2 0.2 -0.1)");
-console.log(ictcp.to("rgb", { precision: 2 })); // → rgb(6.09 6.58 90.88)
+console.log(ictcp.to("rgb")); // → rgb(6 7 90)
 ```
+
+## 📚 Documentation
+
+Full documentation is available at [saturon.vercel.app/docs](https://saturon.vercel.app/docs).
 
 ## 📜 License
 

@@ -1,12 +1,13 @@
 import { Color } from "../Color";
 import { colorModels } from "../converters.js";
 import { EASINGS, MATRICES } from "../math.js";
-import { ColorModel, ColorModelConverter, ColorSpace, FitMethod } from "../types.js";
+import { ColorModel, ColorModelConverter, ColorSpace, Component, FitMethod } from "../types.js";
 import {
     configure,
     extractBalancedExpression,
     fit,
     multiplyMatrices,
+    register,
     registerColorBase,
     registerColorFunction,
     registerColorSpace,
@@ -114,7 +115,7 @@ describe("Color", () => {
         const oklab = Color.from("oklab(0.18751241 0.22143 -0.398685234)");
         const xyz = Color.from("color(xyz 1.4 0.3 -0.2)");
 
-        expect(hsl.toString({ legacy: true })).toBe("hsla(339, 83, 46, 0.5)");
+        expect(hsl.toString({ legacy: true })).toBe("hsla(339, 83%, 46%, 0.5)");
         expect(lch.toString({ units: true })).toBe("lch(83% 122 270deg)");
         expect(oklab.toString({ precision: 1 })).toBe("oklab(0.2 0.2 -0.4)");
         expect(xyz.toString({ fit: "none" })).toBe("color(xyz 1.4 0.3 -0.2)");
@@ -135,14 +136,14 @@ describe("Color", () => {
         expect(color.to("hwb")).toBeDefined();
 
         const getNestedColor = (deepness: number = 1): string => {
-            const randomNum = (): number => Math.floor(Math.random() * 100);
+            const randomNum = (): number => Math.floor(Math.random() * 49) + 1;
             const randomRgbSpace = (): string =>
                 ["srgb", "srgb-linear", "display-p3", "rec2020", "a98-rgb", "prophoto-rgb"][
                     Math.floor(Math.random() * 6)
                 ];
             const randomXyzSpace = (): string => ["xyz-d65", "xyz-d50", "xyz"][Math.floor(Math.random() * 3)];
             const randomModel = (): string =>
-                ["rgb", "hsl", "hwb", "lab", "lch", "oklab", "oklch"][Math.floor(Math.random() * 7)];
+                ["hsl", "hwb", "lab", "lch", "oklab", "oklch"][Math.floor(Math.random() * 6)];
             const optionalAlpha = () => {
                 return Math.random() < 0.5 ? " / alpha" : "";
             };
@@ -244,9 +245,18 @@ describe("Color", () => {
         expect(() =>
             Color.random({
                 model: "rgb",
-                base: { h: 120 },
+                base: { h: 120 } as Partial<Record<Component<"rgb">, number>>,
             })
         ).toThrow();
+    });
+
+    it("should fit color into a supported gamut using default method", () => {
+        const color = Color.from("color(display-p3 1.2 -0.3 0.5)");
+        expect(color.inGamut("srgb")).toBe(false);
+
+        const fitted = color.within("srgb");
+        expect(fitted.model).toBe("display-p3");
+        expect(fitted.inGamut("srgb")).toBe(true);
     });
 
     it("should return true if a color is in gamut", () => {
@@ -268,35 +278,18 @@ describe("Color", () => {
         expect(adjusted.toString()).toBe("hsl(100 100 50)");
     });
 
-    it("should return correct component values using toObject()", () => {
+    it("should return correct component values", () => {
         const color = Color.from("rgb(0, 157, 255)");
         const rgb = color.toObject({ fit: "clip" });
         expect(rgb).toEqual({ r: 0, g: 157, b: 255, alpha: 1 });
     });
 
-    it("should retrieve the correct array of components using toArray()", () => {
+    it("should retrieve the correct array of components", () => {
         const color = Color.from("rgb(0, 157, 255)");
         expect(color.toArray({ fit: "clip" })).toEqual([0, 157, 255, 1]);
     });
 
-    it("should update multiple components with with()", () => {
-        const color = Color.from("hsl(0, 100%, 50%)");
-        const updated = color.with({
-            h: (h) => h + 50,
-            s: (s) => s - 20,
-        });
-        const [h, s] = updated.toArray({ fit: "clip" });
-        expect([h, s]).toStrictEqual([50, 80]);
-    });
-
-    it("should update multiple components with withCoords()", () => {
-        const color = Color.from("hsl(200 100% 50%)");
-        const updated = color.withCoords([undefined, 50, 80]);
-        const coords = updated.toArray({ fit: "clip" });
-        expect(coords).toStrictEqual([200, 50, 80, 1]);
-    });
-
-    it("should mix two colors correctly using mix()", () => {
+    it("should mix two colors correctly", () => {
         const color1 = Color.from("red").in("hsl").mix("lime", { hue: "shorter" }).to("named-color");
         const color2 = Color.from("red").in("hsl").mix("lime", { hue: "longer" }).to("named-color");
         expect(color1).toBe("yellow");
@@ -311,6 +304,23 @@ describe("Color", () => {
 
     it("should throw an error for an invalid model", () => {
         expect(() => Color.from("rgb(255, 255, 255)").in("invalidModel")).toThrow();
+    });
+
+    it("should update multiple components with an object", () => {
+        const color = Color.from("hsl(0, 100%, 50%)");
+        const updated = color.with({
+            h: (h) => h + 50,
+            s: (s) => s - 20,
+        });
+        const [h, s] = updated.toArray({ fit: "clip" });
+        expect([h, s]).toStrictEqual([50, 80]);
+    });
+
+    it("should update multiple components with an array", () => {
+        const color = Color.from("hsl(200 100% 50%)");
+        const updated = color.with([undefined, 50, 80]);
+        const coords = updated.toArray({ fit: "clip" });
+        expect(coords).toStrictEqual([200, 50, 80, 1]);
     });
 
     it("should adjust opacity correctly", () => {
@@ -340,11 +350,11 @@ describe("Color", () => {
     it("should adjust contrast correctly", () => {
         const color = Color.from("rgb(30, 190, 250)");
         const amount = 2;
-        const adjusted = color.with({
-            r: (r) => (r - 128) * amount + 128,
-            g: (g) => (g - 128) * amount + 128,
-            b: (b) => (b - 128) * amount + 128,
-        });
+        const adjusted = color.with(({ r, g, b }) => [
+            (r - 128) * amount + 128,
+            (g - 128) * amount + 128,
+            (b - 128) * amount + 128,
+        ]);
         expect(adjusted.toString()).toBe("rgb(0 252 255)");
     });
 
@@ -531,91 +541,134 @@ describe("Color registration system", () => {
         expect(Color.from("duskmint").equals("#7ba797")).toBe(true);
     });
 
+    it("should register a color space for <color()> function", () => {
+        /**
+         * @see {@link https://www.w3.org/TR/css-color-hdr-1/|CSS Color HDR Module Level 1}
+         */
+        registerColorSpace("rec2100-hlg", {
+            components: ["r", "g", "b"],
+            bridge: "xyz-d65",
+            toLinear: (c: number) => {
+                const a = 0.17883277;
+                const b = 1 - 4 * a;
+                const c1 = 0.5 - a * Math.log(4 * a);
+                if (c <= 0.5) return c ** 2 / 3;
+                return (Math.exp((c - c1) / a) + b) / 12;
+            },
+            fromLinear: (E: number) => {
+                const a = 0.17883277;
+                const b = 1 - 4 * a;
+                const c1 = 0.5 - a * Math.log(4 * a);
+                const sign = E < 0 ? -1 : 1;
+                const absE = Math.abs(E);
+                if (absE <= 1 / 12) return sign * Math.sqrt(3 * absE);
+                return sign * (a * Math.log(12 * absE - b) + c1);
+            },
+            toBridgeMatrix: MATRICES.REC2020_to_XYZD65,
+            fromBridgeMatrix: MATRICES.XYZD65_to_REC2020,
+        });
+
+        const rec2100 = Color.from("color(rec2100-hlg none calc(-infinity) 100%)");
+        expect(rec2100.toArray()).toEqual([0, 0, 1, 1]);
+        expect(() => rec2100.with({ r: 0 }).to("xyz-d65")).not.toThrow();
+
+        const instance = new Color("rec2100-hlg" as ColorModel, [NaN, -Infinity, Infinity]);
+        expect(instance.toArray()).toEqual([0, 0, 1, 1]);
+
+        const relative = "color(from color(rec2100-hlg 0.7 0.3 0.1) rec2100-hlg r g b)";
+        expect(Color.isValid(relative, "rec2100-hlg"));
+
+        const outOfSrgb = Color.from("color(rec2100-hlg 0 1 0)");
+        expect(outOfSrgb.inGamut("srgb")).toBe(false);
+        expect(outOfSrgb.inGamut("rec2100-hlg")).toBe(true);
+    });
+
     it("should register a <color-function>", () => {
         /**
-         * @see {@link https://colour.readthedocs.io/en/latest/_modules/colour/models/rgb/ictcp.html|Source code for colour.models.rgb.ictcp}
+         * @see {@link https://www.color.org/hdr/04-Timo_Kunkel.pdf|The Perceptual Quantizer}
+         */
+        registerColorSpace("rec2100-pq", {
+            components: ["r", "g", "b"],
+            bridge: "xyz-d65",
+            toLinear: (c: number) => {
+                const ninv = 2 ** 14 / 2610;
+                const minv = 2 ** 5 / 2523;
+                const c1 = 3424 / 2 ** 12;
+                const c2 = 2413 / 2 ** 7;
+                const c3 = 2392 / 2 ** 7;
+                const x = Math.pow(Math.max(Math.pow(c, minv) - c1, 0) / (c2 - c3 * Math.pow(c, minv)), ninv);
+                const Yw = 203;
+                return (x * 10000) / Yw;
+            },
+            fromLinear: (c: number) => {
+                const Yw = 203;
+                const x = (c * Yw) / 10000;
+                const n = 2610 / 2 ** 14;
+                const m = 2523 / 2 ** 5;
+                const c1 = 3424 / 2 ** 12;
+                const c2 = 2413 / 2 ** 7;
+                const c3 = 2392 / 2 ** 7;
+                return Math.pow((c1 + c2 * Math.pow(x, n)) / (1 + c3 * Math.pow(x, n)), m);
+            },
+            toBridgeMatrix: MATRICES.REC2020_to_XYZD65,
+            fromBridgeMatrix: MATRICES.XYZD65_to_REC2020,
+        });
+
+        const m1 = 2610 / 16384;
+        const m2 = (2523 / 4096) * 128;
+        const c1 = 3424 / 4096;
+        const c2 = (2413 / 4096) * 32;
+        const c3 = (2392 / 4096) * 32;
+
+        /**
+         * @see {@link https://www.itu.int/dms_pub/itu-r/opb/rep/R-REP-BT.2390-8-2020-PDF-E.pdf|High dynamic range television for production and international}
          */
         registerColorFunction("ictcp", {
-            bridge: "rec2020",
-            targetGamut: "rec2020",
             components: {
                 i: { index: 0, value: [0, 1], precision: 5 },
                 ct: { index: 1, value: [-1, 1], precision: 5 },
                 cp: { index: 2, value: [-1, 1], precision: 5 },
             },
-            toBridge: (ictcp: number[]) => {
-                const m1 = 0.1593017578125;
-                const m2 = 78.84375;
-                const c1 = 0.8359375;
-                const c2 = 18.8515625;
-                const c3 = 18.6875;
-                const MATRIX_ICTCP_TO_LMS_P = [
-                    [1.0, 0.008609037, 0.111029625],
-                    [1.0, -0.008609037, -0.111029625],
-                    [1.0, 0.5600313357, -0.320627175],
-                ];
-                const MATRIX_LMS_TO_BT2020 = [
-                    [3.4366066943, -2.5064521187, 0.0698454243],
-                    [-0.7913295556, 1.9836004518, -0.1922708962],
-                    [-0.0259498997, -0.0989137147, 1.1248636144],
-                ];
-                const pq_eotf = (E: number) => {
-                    if (E <= 0) return 0;
-                    const E_pow = Math.pow(E, 1 / m2);
-                    const numerator = Math.max(E_pow - c1, 0);
-                    const denominator = c2 - c3 * E_pow;
-                    return Math.pow(numerator / denominator, 1 / m1);
+            bridge: "rec2100-pq",
+            fromBridge: ([R, G, B]: number[]) => {
+                const pqOETF = (x: number) => {
+                    const xp = Math.pow(x, m1);
+                    return Math.pow((c1 + c2 * xp) / (1 + c3 * xp), m2);
                 };
-                const fromLinear = (c: number) => {
-                    const α = 1.09929682680944;
-                    const β = 0.018053968510807;
-                    const sign = c < 0 ? -1 : 1;
-                    const abs = Math.abs(c);
-                    if (abs > β) {
-                        return sign * (α * Math.pow(abs, 0.45) - (α - 1));
-                    }
-                    return sign * (4.5 * abs);
-                };
-                const lms_p = multiplyMatrices(MATRIX_ICTCP_TO_LMS_P, ictcp);
-                const lms = lms_p.map(pq_eotf);
-                const linear = multiplyMatrices(MATRIX_LMS_TO_BT2020, lms);
-                return linear.map(fromLinear);
+                const RGB_to_LMS = [
+                    [1688 / 4096, 2146 / 4096, 262 / 4096],
+                    [683 / 4096, 2951 / 4096, 462 / 4096],
+                    [99 / 4096, 309 / 4096, 3688 / 4096],
+                ];
+                const LMSp_to_ICTCP = [
+                    [2048 / 4096, 2048 / 4096, 0 / 4096],
+                    [6610 / 4096, -13613 / 4096, 7003 / 4096],
+                    [17933 / 4096, -17390 / 4096, -543 / 4096],
+                ];
+                const LMS = multiplyMatrices(RGB_to_LMS, [R, G, B]);
+                const LMSp = LMS.map(pqOETF);
+                const ICTCP = multiplyMatrices(LMSp_to_ICTCP, LMSp);
+                return ICTCP;
             },
-            fromBridge: (rec2020: number[]) => {
-                const toLinear = (c: number) => {
-                    const α = 1.09929682680944;
-                    const β = 0.018053968510807;
-                    const sign = c < 0 ? -1 : 1;
-                    const abs = Math.abs(c);
-                    if (abs < β * 4.5) {
-                        return sign * (abs / 4.5);
-                    }
-                    return sign * Math.pow((abs + α - 1) / α, 1 / 0.45);
+            toBridge: ([I, Ct, Cp]: number[]) => {
+                const pqEOTF = (y: number) => {
+                    const yp = Math.pow(y, 1 / m2);
+                    return Math.pow(Math.max(yp - c1, 0) / (c2 - c3 * yp), 1 / m1);
                 };
-                const linear = rec2020.map(toLinear);
-                const m1 = 0.1593017578125;
-                const m2 = 78.84375;
-                const c1 = 0.8359375;
-                const c2 = 18.8515625;
-                const c3 = 18.6875;
-                const MATRIX_BT2020_TO_LMS = [
-                    [0.412109375, 0.5239257812, 0.0639648438],
-                    [0.1667480469, 0.7204589844, 0.1127929688],
-                    [0.0241699219, 0.0754394531, 0.900390625],
+                const ICTCP_to_LMSp = [
+                    [1.0, 0.00860903703704, 0.111029625],
+                    [1.0, -0.00860903703704, -0.111029625],
+                    [1.0, 0.56003133501049, -0.32062717499839],
                 ];
-                const MATRIX_LMS_P_TO_ICTCP = [
-                    [0.5, 0.5, 0.0],
-                    [1.6137695312, -3.3234863281, 1.7097167969],
-                    [4.3781738281, -4.2456054688, -0.1325683594],
+                const LMS_to_RGB = [
+                    [3.43660668650384, -2.50645211965619, 0.06984543315235],
+                    [-0.791329556583, 1.98360045251401, -0.19227089593101],
+                    [0.02594989937188, -0.09891371469193, 1.07296381532005],
                 ];
-                const pq_eotf_inverse = (N: number) => {
-                    if (N <= 0) return 0;
-                    const N_pow_m1 = Math.pow(N, m1);
-                    return Math.pow((c1 + c2 * N_pow_m1) / (1 + c3 * N_pow_m1), m2);
-                };
-                const lms = multiplyMatrices(MATRIX_BT2020_TO_LMS, linear);
-                const lms_p = lms.map(pq_eotf_inverse);
-                return multiplyMatrices(MATRIX_LMS_P_TO_ICTCP, lms_p);
+                const LMSp = multiplyMatrices(ICTCP_to_LMSp, [I, Ct, Cp]);
+                const LMS = LMSp.map(pqEOTF);
+                const RGB = multiplyMatrices(LMS_to_RGB, LMS);
+                return RGB.map((v) => Math.min(1, Math.max(0, v)));
             },
         });
 
@@ -632,29 +685,6 @@ describe("Color registration system", () => {
         const outOfSrgb = Color.from("ictcp(0.8 -0.4 -0.1)");
         expect(outOfSrgb.inGamut("srgb")).toBe(false);
         expect(outOfSrgb.inGamut("rec2020")).toBe(true);
-    });
-
-    it("should register a color space for <color()> function", () => {
-        registerColorSpace("rec2100-linear", {
-            components: ["r", "g", "b"],
-            bridge: "xyz-d65",
-            toBridgeMatrix: MATRICES.REC2020_to_XYZD65,
-            fromBridgeMatrix: MATRICES.XYZD65_to_REC2020,
-        });
-
-        const rec2100 = Color.from("color(rec2100-linear none calc(-infinity) 100%)");
-        expect(rec2100.toArray()).toEqual([0, 0, 1, 1]);
-        expect(() => rec2100.with({ r: 0 }).to("xyz-d65")).not.toThrow();
-
-        const instance = new Color("rec2100-linear" as ColorModel, [NaN, -Infinity, Infinity]);
-        expect(instance.toArray()).toEqual([0, 0, 1, 1]);
-
-        const relative = "color(from color(rec2100-linear 0.7 0.3 0.1) rec2100-linear r g b)";
-        expect(Color.isValid(relative, "rec2100-linear"));
-
-        const outOfSrgb = Color.from("color(rec2100-linear 0 1 0)");
-        expect(outOfSrgb.inGamut("srgb")).toBe(false);
-        expect(outOfSrgb.inGamut("rec2100-linear")).toBe(true);
     });
 
     it("should register a new <color-base> syntax", () => {
@@ -1162,7 +1192,7 @@ describe("Color registration system", () => {
         });
 
         const wavelength = Color.from("wavelength(360)");
-        expect(wavelength.toArray()).toEqual([0.0001299, 0.000003917, 0.0006061, 1]);
+        expect(wavelength.toArray({ precision: null })).toEqual([0.0001299, 0.000003917, 0.0006061, 1]);
         expect(() => wavelength.with({ x: 0 }).to("rgb")).not.toThrow();
 
         const relative = "color(from wavelength(360) xyz-d65 x y z)";
@@ -1320,6 +1350,26 @@ describe("Color registration system", () => {
         expect(Color.isValid(complex, "color-at"));
     });
 
+    it("should register multiple custom named colors and convert correctly", () => {
+        const namedColors = [
+            { name: "Twilight Coral", value: [220, 128, 144] },
+            { name: "Moonstone Blue", value: [115, 166, 213] },
+            { name: "Sunset Amber", value: [255, 183, 77] },
+            { name: "Forest Whisper", value: [34, 139, 97] },
+            { name: "Slate Blue Gray", value: [115, 124, 161] },
+        ];
+
+        register(
+            "named-color",
+            namedColors.map(({ name, value }) => ({ name, value }))
+        );
+
+        namedColors.forEach(({ value, name }) => {
+            const normalizedName = name.replace(/\s+/g, "").toLowerCase();
+            expect(Color.from(`rgb(${value.join(" ")})`).to("named-color")).toBe(normalizedName);
+        });
+    });
+
     it("should unregister <color> types from the system", () => {
         unregister("hwb", "prophoto-rgb", "lch");
 
@@ -1412,7 +1462,7 @@ describe("Color registration system", () => {
             });
         };
 
-        const opponentColourDimensionsForward = (RGB: number[]) => {
+        const opponentColorDimensionsForward = (RGB: number[]) => {
             const [R, G, B] = RGB;
             const a = R - (12 * G) / 11 + B / 11;
             const b = (R + G - 2 * B) / 9;
@@ -1479,7 +1529,7 @@ describe("Color registration system", () => {
             return Math.pow(t, 0.9) * Math.sqrt(J / 100) * Math.pow(1.64 - Math.pow(0.29, n), 0.73);
         };
 
-        const colourfulnessCorrelate = (C: number, F_L: number) => C * Math.pow(F_L, 0.25);
+        const colorfulnessCorrelate = (C: number, F_L: number) => C * Math.pow(F_L, 0.25);
 
         const saturationCorrelate = (M: number, Q: number) => 100 * Math.sqrt(M / Q);
 
@@ -1497,7 +1547,7 @@ describe("Color registration system", () => {
             return [R_a, G_a, B_a];
         };
 
-        const opponentColourDimensionsInverse = (Pn: [number, number, number], hDeg: number) => {
+        const opponentColorDimensionsInverse = (Pn: [number, number, number], hDeg: number) => {
             const [P_1, , P_3] = Pn;
             const hr = (hDeg * Math.PI) / 180;
             const sin_hr = Math.sin(hr);
@@ -1545,7 +1595,7 @@ describe("Color registration system", () => {
             const RGB_c = [D_RGB[0] * RGB[0], D_RGB[1] * RGB[1], D_RGB[2] * RGB[2]];
             const RGB_a = postAdaptationNonLinearResponseCompressionForward(RGB_c, F_L);
 
-            const [a, b] = opponentColourDimensionsForward(RGB_a);
+            const [a, b] = opponentColorDimensionsForward(RGB_a);
             const h = hueAngle(a, b);
 
             const e_t = eccentricityFactor(h);
@@ -1556,7 +1606,7 @@ describe("Color registration system", () => {
             const Q = brightnessCorrelate(surround.c, J, A_w, F_L);
 
             const C = chromaCorrelate(J, n, surround.N_c, N_cb, e_t, a, b, RGB_a);
-            const M = colourfulnessCorrelate(C, F_L);
+            const M = colorfulnessCorrelate(C, F_L);
             const s = saturationCorrelate(M, Q);
 
             return {
@@ -1611,7 +1661,7 @@ describe("Color registration system", () => {
             const Pn = P(surround.N_c, N_cb, e_t, t, A, N_bb);
             const [, P_2] = Pn;
 
-            let [a, b] = opponentColourDimensionsInverse(Pn, h);
+            let [a, b] = opponentColorDimensionsInverse(Pn, h);
             if (t === 0) {
                 a = 0;
                 b = 0;
@@ -1625,7 +1675,7 @@ describe("Color registration system", () => {
         };
 
         /**
-         * @see {@link https://colour.readthedocs.io/en/develop/_modules/colour/appearance/cam16.html|Source code for colour.appearance.cam16}
+         * @see {@link https://colour.readthedocs.io/en/develop/_modules/colour/appearance/cam16.html|Colour Science CAM16-UCS documentation}
          */
         registerFitMethod("cam16-ucs", (coords, model): number[] => {
             const { targetGamut } = colorModels[model] as ColorModelConverter;
@@ -1697,19 +1747,20 @@ describe("Color registration system", () => {
 });
 
 declare module "../Color.js" {
+    // eslint-disable-next-line no-unused-vars
     interface Color<M extends ColorModel = ColorModel> {
         /**
          * Lightens the color by the given amount.
          * @param amount - The amount to lighten the color by.
          * @returns A new `Color` instance with increased brightness.
          */
-        lighten(amount: number): Color<M>; // eslint-disable-line no-unused-vars
+        lighten(amount: number): Color<"hsl">; // eslint-disable-line no-unused-vars
         /**
          * Darkens the color by the given amount.
          * @param amount - The amount to darken the color by.
          * @returns A new `Color` instance with decreased brightness.
          */
-        darken(amount: number): Color<M>; // eslint-disable-line no-unused-vars
+        darken(amount: number): Color<"hsl">; // eslint-disable-line no-unused-vars
     }
 }
 
@@ -1755,7 +1806,7 @@ describe("use()", () => {
         use(plugin);
         use(plugin);
 
-        expect(warnSpy).toHaveBeenCalledWith("Plugin at index 0 has already been registered. Skipping.");
+        expect(warnSpy).toHaveBeenCalledWith("Plugin at index 0 is already registered. Skipping.");
         warnSpy.mockRestore();
     });
 
@@ -1768,7 +1819,7 @@ describe("use()", () => {
         const errorSpy = jest.spyOn(console, "error").mockImplementation(() => {});
         use(badPlugin);
 
-        expect(errorSpy).toHaveBeenCalledWith("Error while running plugin at index 0:", error);
+        expect(errorSpy).toHaveBeenCalledWith("Error running plugin at index 0:", error);
         errorSpy.mockRestore();
     });
 

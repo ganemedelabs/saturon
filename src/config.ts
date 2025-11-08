@@ -67,7 +67,7 @@ export const systemColors = {
     ],
     SelectedItem: [
         [0, 120, 215],
-        [100, 100, 100],
+        [0, 120, 215],
     ],
     SelectedItemText: [
         [255, 255, 255],
@@ -82,4 +82,7 @@ export const systemColors = {
 export const config: Config = {
     theme: "light",
     systemColors,
+    defaults: {
+        fit: "clip",
+    },
 };

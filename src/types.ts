@@ -14,6 +14,12 @@ export type Config = {
     systemColors: {
         [key: string]: number[][];
     };
+
+    /** Default options for the engine. */
+    defaults: {
+        /** Default method for fitting colors into the target gamut. */
+        fit: FitMethod;
+    };
 };
 
 /** Represents a plugin type for the `Color` class. */
@@ -175,7 +181,7 @@ export type ComponentDefinition = {
     /** The value type for the component, which can be a tuple of two numbers representing a range, or a string indicating a special type ("angle" or "percentage"). */
     value: number[] | "angle" | "percentage";
 
-    /** Precision for rounding the component value, or `null` to disable rounding. */
+    /** Precision for rounding the component value, or `null` to disable rounding. Defaults to 3 if left undefined. */
     precision?: number | null;
 };
 
@@ -185,15 +191,6 @@ export type ComponentDefinition = {
  * @template M - The color model type.
  */
 export type Component<M extends ColorModel> = keyof (typeof colorModels)[M]["components"] | "alpha";
-
-/** Represents options for retrieving the coordinates. */
-export type GetOptions = {
-    /** Method for fitting the color into the target gamut. */
-    fit?: FitMethod;
-
-    /** Overrides the precision of the output color components, or `null` to disable rounding. */
-    precision?: number | null;
-};
 
 /** Specifies the method used for interpolating hue values during color mixing. */
 export type HueInterpolationMethod = "shorter" | "longer" | "increasing" | "decreasing";
@@ -207,31 +204,40 @@ export type FitFunction = (coords: number[], model: ColorFunction) => number[];
 /** Describes the available methods for fitting the color into the target gamut. */
 export type FitMethod = keyof typeof fitMethods | "clip" | "none";
 
+/** Represents options for retrieving the coordinates. */
+export type GetOptions = {
+    /** Method for fitting the color into the target gamut. Defaults to `config.defaults.fit`. */
+    fit?: FitMethod;
+
+    /** Overrides the auto precision of the output color components, or `null` to disable rounding. */
+    precision?: number | null;
+};
+
 /** Options for formatting color output. */
 export type FormattingOptions = GetOptions & {
-    /** Use legacy syntax (e.g., `"rgb(255, 0, 0, 0.5)"`). */
+    /** Use legacy syntax (e.g., `"rgba(255, 0, 0, 0.5)"`). */
     legacy?: boolean;
 
-    /** Output components with units (e.g., `"hsl(250deg 74% 54%)"`). */
+    /** Output components with optional unit suffixes (e.g., `"hsl(250deg 74% 54%)"`). */
     units?: boolean;
 };
 
 /** Options for generating a random Color instance. */
-export type RandomOptions = {
+export type RandomOptions<M extends ColorModel = ColorModel> = {
     /** The color model to use (e.g., "rgb" or "hsl"). */
-    model?: ColorModel;
+    model?: M;
 
     /** Optional limits for each channel, specified as a tuple of [min, max] values. */
-    limits?: Record<string, [number, number]>;
+    limits?: Partial<Record<Component<M>, [number, number]>>;
 
     /** Optional bias functions for each channel, which transform the random value. */
-    bias?: Record<string, (x: number) => number>;
+    bias?: Partial<Record<Component<M>, (x: number) => number>>;
 
     /** Optional base values for each channel. */
-    base?: Record<string, number>;
+    base?: Partial<Record<Component<M>, number>>;
 
     /** Optional deviation values for each channel, used to control randomness. */
-    deviation?: Record<string, number>;
+    deviation?: Partial<Record<Component<M>, number>>;
 };
 
 /** Options for mixing two colors. */

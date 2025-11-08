@@ -14,8 +14,10 @@ import type {
     ColorModel,
     RandomOptions,
     GetOptions,
+    ColorConverter,
 } from "./types.js";
 import { EASINGS } from "./math.js";
+import { config } from "./config.js";
 
 /**
  * The `Color` class represents a dynamic CSS color object, allowing for the manipulation
@@ -26,131 +28,129 @@ export class Color<M extends ColorModel = ColorModel> {
     coords: number[];
 
     constructor(model: M, coords: number[] = [0, 0, 0, 0]) {
-        if (!(model in colorModels)) {
-            throw new Error(`Unsupported color model: '${model}'`);
-        }
+        if (model in colorModels === false) throw new Error(`Unsupported color model: '${model}'`);
+        if ([3, 4].includes(coords.length) === false) throw new Error("Coordinates array must have 3 or 4 elements.");
 
-        if (coords.length < 3 || coords.length > 4) {
-            throw new Error("Coordinates array must have 3 or 4 elements.");
-        }
-
-        const normalized = coords.slice();
-
-        if (normalized.length === 3) {
-            normalized.push(1);
-        }
+        const c = coords.slice();
+        if (c.length === 3) c.push(1);
 
         this.model = model;
-        this.coords = normalized;
+        this.coords = c;
     }
 
     /**
-     * Creates a new `Color` instance from a given color string.
+     * Creates a new `Color` from a color string.
      *
-     * @template T - The color model type.
-     * @param color - The color string to convert.
+     * @template T - Color model type.
+     * @param color - Color string to parse.
      * @returns A new `Color` instance.
      */
     /* eslint-disable no-unused-vars, @typescript-eslint/no-explicit-any */
     static from(color: NamedColor): Color<"rgb">;
+    static from(color: `#${string}`): Color<"rgb">;
+    static from(color: `rgb(${string})` | `rgba(${string})`): Color<"rgb">;
+    static from(color: `hsl(${string})` | `hsla(${string})`): Color<"hsl">;
+    static from(color: `hwb(${string})`): Color<"hwb">;
+    static from(color: `lab(${string})`): Color<"lab">;
+    static from(color: `lch(${string})`): Color<"lch">;
+    static from(color: `oklab(${string})`): Color<"oklab">;
+    static from(color: `oklch(${string})`): Color<"oklch">;
     static from(color: string): Color<any>;
     static from<T extends ColorModel = ColorModel>(color: string): Color<T>;
     static from<T extends ColorModel = ColorModel>(color: NamedColor | string): Color<T | any> {
         /* eslint-enable no-unused-vars, @typescript-eslint/no-explicit-any */
-        const cleaned = clean(color);
-
+        const c = clean(color);
         for (const type in colorTypes) {
-            const { parse, bridge, toBridge, isValid } = colorTypes[type as ColorModel];
+            const t = type as ColorModel;
+            const { parse, bridge, toBridge, isValid } = colorTypes[t];
+            if (!isValid(c)) continue;
 
-            if (isValid(cleaned)) {
-                const parsed = parse(cleaned);
-
-                if (type in colorModels) return new Color(type as T, parsed);
-
-                return new Color(bridge as T, toBridge(parsed));
-            }
+            const parsed = parse(c);
+            const coords = t in colorModels ? parsed : toBridge(parsed);
+            const model = (t in colorModels ? t : bridge) as T;
+            return new Color(model, coords);
         }
-
-        throw new Error(`Unsupported or invalid color format: '${color}'`);
+        throw new Error(`Unsupported or invalid color format: '${color}'.`);
     }
 
     /**
-     * Determines the type of a given color string.
+     * Returns the detected color type, or `undefined` if unrecognized.
      *
-     * @param color - The color string to analyze.
-     * @returns The color type if recognized, or `undefined` if not.
+     * @param color - Color string to analyze.
+     * @param strict - Whether to validate full round-trip conversion.
      */
-    static type(color: string, strict = false): ColorType | undefined {
-        const cleaned = clean(color);
-
+    static type(color: string, strict = false) {
+        const c = clean(color);
         for (const type in colorTypes) {
-            const { isValid, bridge, parse, toBridge } = colorTypes[type as ColorType];
+            const t = type as ColorType;
+            const { isValid, bridge, parse, toBridge } = colorTypes[t];
+            if (!isValid(c)) continue;
 
-            if (isValid(cleaned)) {
-                if (!strict) return type as ColorType;
-
-                try {
-                    const coords = toBridge(parse(cleaned));
-                    const test = new Color(bridge as ColorModel, coords);
-                    return typeof test === "object" ? (type as ColorType) : undefined;
-                } catch {
-                    return undefined;
-                }
+            if (!strict) return t;
+            try {
+                const parsed = parse(c);
+                const coords = t in colorModels ? parsed : toBridge(parsed);
+                const model = (type in colorModels ? type : bridge) as ColorModel;
+                return typeof new Color(model, coords) === "object" ? t : undefined;
+            } catch {
+                return undefined;
             }
         }
-
         return undefined;
     }
 
     /**
-     * Checks if the provided color string is valid, optionally for a specific color type.
+     * Validates a color string, optionally for a specific type.
      *
-     * @param color - The color string to validate.
-     * @param type - (Optional) The color type to validate against.
-     * @returns `true` if the color string is valid for the specified type (or any type if not specified), otherwise `false`.
+     * @param color - Color string to check.
+     * @param type - Optional color type.
+     * @returns `true` if valid, otherwise `false`.
      */
     static isValid(color: string, type?: ColorType): boolean; // eslint-disable-line no-unused-vars
     static isValid(color: string, type?: string): boolean; // eslint-disable-line no-unused-vars
     static isValid(color: string, type?: ColorType | string) {
-        const cleanedType = type?.trim().toLowerCase();
-        const cleanedColor = clean(color);
-
         try {
-            if (cleanedType) {
-                const { isValid, bridge, parse, toBridge } = colorTypes[cleanedType as ColorType];
-                if (isValid(cleanedColor)) {
-                    const coords = toBridge(parse(cleanedColor));
-                    return typeof new Color(bridge as ColorModel, coords) === "object";
-                } else return false;
-            } else return typeof Color.from(cleanedColor) === "object";
+            if (type) {
+                const t = type?.trim().toLowerCase() as ColorType;
+                const c = clean(color);
+
+                const { isValid, bridge, parse, toBridge } = colorTypes[t];
+                if (!isValid(c)) return false;
+
+                const parsed = parse(c);
+                const coords = t in colorModels ? parsed : toBridge(parsed);
+                const model = (t in colorModels ? t : bridge) as ColorModel;
+                return !!new Color(model, coords);
+            }
+            return !!Color.from(color);
         } catch {
             return false;
         }
     }
 
     /**
-     * Generates a random `Color` instance using the specified options.
+     * Generates a random `Color` instance.
      *
-     * @param options - Configuration for random color generation.
-     * @returns A new `Color` instance with randomly generated components according to the specified options.
-     * @throws If an invalid component is specified in options for the selected color model.
+     * @template M - The color model type.
+     * @param options - Random generation options.
+     * @returns A new random `Color` instance.
+     * @throws If an invalid component is specified.
      */
-    static random(options: RandomOptions = {}) {
-        const modelNames = Object.keys(colorModels) as (keyof typeof colorModels)[];
-        const { model = modelNames[Math.floor(Math.random() * modelNames.length)] } = options;
-        const converter = colorModels[model];
+    static random<M extends ColorModel = ColorModel>(options: RandomOptions<M> = {}) {
+        const models = Object.keys(colorModels) as ColorModel[];
+        const model = options.model ?? (models[Math.floor(Math.random() * models.length)] as M);
+        const { components } = colorModels[model];
 
-        const validComponents = new Set([...Object.keys(converter.components), "alpha"]);
+        const valid = new Set([...Object.keys(components), "alpha"]);
 
         for (const section of ["limits", "bias", "base", "deviation"] as const) {
             const record = options[section];
             if (!record) continue;
 
             for (const key of Object.keys(record)) {
-                if (!validComponents.has(key)) {
+                if (!valid.has(key)) {
                     throw new Error(
-                        `Invalid component "${key}" for model "${model}". ` +
-                            `Valid components are: ${Array.from(validComponents).join(", ")}`
+                        `Invalid component "${key}" for model "${model}". Valid components: ${[...valid].join(", ")}`
                     );
                 }
             }
@@ -158,52 +158,40 @@ export class Color<M extends ColorModel = ColorModel> {
 
         const coords: number[] = [];
 
-        for (const [name, comp] of Object.entries(converter.components)) {
+        for (const [name, comp] of Object.entries(components)) {
+            const base = options.base?.[name as Component<M>];
+            const dev = options.deviation?.[name as Component<M>];
+
             let value: number;
 
-            if (options.base?.[name] != null && options.deviation?.[name] != null) {
-                const base = options.base[name]!;
-                const dev = options.deviation[name]!;
+            if (base != null && dev != null) {
                 const u = Math.random() || 1e-9;
                 const v = Math.random() || 1e-9;
-                const gaussian = Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
-                value = base + gaussian * dev;
+                value = base + Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v) * dev;
             } else {
-                let min: number;
-                let max: number;
+                let [min, max] =
+                    comp.value === "angle" ? [0, 360] : comp.value === "percentage" ? [0, 100] : comp.value;
 
-                if (comp.value === "angle") {
-                    min = 0;
-                    max = 360;
-                } else if (comp.value === "percentage") {
-                    min = 0;
-                    max = 100;
-                } else {
-                    [min, max] = comp.value;
-                }
-
-                if (options.limits?.[name]) {
-                    const [limMin, limMax] = options.limits[name];
-                    min = Math.max(min, limMin);
-                    max = Math.min(max, limMax);
+                const limits = options.limits?.[name as Component<M>];
+                if (limits) {
+                    const [lMin, lMax] = limits;
+                    min = Math.max(min, lMin);
+                    max = Math.min(max, lMax);
                 }
 
                 let r = Math.random();
-                if (options.bias?.[name]) {
-                    r = options.bias[name](r);
-                }
+                const biasFn = options.bias?.[name as Component<M>];
+                if (biasFn) r = biasFn(r);
 
                 value = min + r * (max - min);
             }
 
-            if (comp.value === "angle") {
-                value = ((value % 360) + 360) % 360;
-            } else if (comp.value === "percentage") {
-                value = Math.min(100, Math.max(0, value));
-            } else if (Array.isArray(comp.value)) {
+            if (comp.value === "angle") value = ((value % 360) + 360) % 360;
+            else if (comp.value === "percentage") value = Math.min(100, Math.max(0, value));
+            else if (Array.isArray(comp.value)) {
                 const [min, max] = comp.value;
                 value = Math.min(max, Math.max(min, value));
-            }
+            } else throw new Error(`Invalid component value definition for "${name}".`);
 
             coords[comp.index] = value;
         }
@@ -212,536 +200,439 @@ export class Color<M extends ColorModel = ColorModel> {
     }
 
     /**
-     * Converts the current color to the specified format.
+     * Converts this color to a specified format.
      *
-     * @param format - The target color format.
-     * @param options - Formatting options.
-     * @returns The color in the specified format.
+     * @param type - Target output format.
+     * @param options - Optional formatting options.
+     * @returns The formatted color string.
      */
     to(type: string, options?: FormattingOptions): string; // eslint-disable-line no-unused-vars
     to(type: OutputType, options?: FormattingOptions): string; // eslint-disable-line no-unused-vars
     to(type: OutputType | string, options: FormattingOptions = {}) {
-        const cleanedType = type.toLowerCase();
+        const t = type.toLowerCase() as OutputType;
+        const { legacy = false, fit = config.defaults.fit, precision, units = false } = options;
+        const conv = colorTypes[t];
+        if (!conv) throw new Error(`Unsupported color type: '${t}'.`);
 
-        const { legacy = false, fit = "clip", precision = undefined, units = false } = options;
-        const converter = colorTypes[cleanedType as OutputType];
+        const { fromBridge, bridge, format } = conv;
+        if (!fromBridge || !format) throw new Error(`Invalid output type: '${t}'.`);
 
-        if (!converter) throw new Error(`Unsupported color type: '${String(cleanedType)}'.`);
+        const fmt = (coords: number[]) => format(coords, { legacy, fit, precision, units });
 
-        const { fromBridge, bridge, format } = converter;
+        if (t === this.model) return fmt(this.coords);
+        if (t in colorModels) return fmt(this.in(t).toArray({ fit: "none", precision: null }));
 
-        if (!fromBridge || !format) {
-            throw new Error(`Invalid output type: ${String(cleanedType)}.`);
-        }
-
-        if (cleanedType === this.model) {
-            return format(this.coords, { legacy, fit, precision, units });
-        }
-
-        if (cleanedType in colorModels) {
-            const coords = this.in(cleanedType).toArray();
-            return format(coords, { legacy, fit, precision, units });
-        }
-
-        const coords = this.in(bridge).toArray();
-        return format(fromBridge(coords), { legacy, fit, precision, units });
+        return fmt(fromBridge(this.in(bridge).toArray({ fit: "none", precision: null })));
     }
 
     /**
-     * Allows access to the raw values of the color in a specified model.
+     * Converts this color to another model or gives access to its raw values in that model.
      *
-     * @template T - The target color model type.
-     * @param model - The target color model.
-     * @returns An object containing methods to get, set, and mix color components in the specified color model.
+     * @template T - Target color model type.
+     * @param model - Target color model.
+     * @returns A new `Color` instance in the specified model.
      */
     in<T extends ColorModel = ColorModel>(model: T): Color<T>; // eslint-disable-line no-unused-vars
     in(model: string): Color<any>; // eslint-disable-line no-unused-vars, @typescript-eslint/no-explicit-any
     in<T extends ColorModel = ColorModel>(model: string | T): Color<T> {
-        const { model: currentModel, coords: currentCoords } = this;
-        const targetModel = model.trim().toLowerCase();
+        const from = this.model;
+        const to = model.trim().toLowerCase();
+        if (to === from) return new Color(to as T, [...this.coords]);
 
-        let value = currentCoords;
-
-        if ((targetModel as string) !== currentModel) {
-            const buildGraph = () => {
-                const graph: Record<string, string[]> = {};
-
-                for (const [modelName, convRaw] of Object.entries(colorModels)) {
-                    const conv = convRaw as ColorModelConverter;
-                    const { bridge } = conv;
-
-                    if (!graph[modelName]) graph[modelName] = [];
-                    graph[modelName].push(bridge);
-
-                    if (!graph[bridge]) graph[bridge] = [];
-                    graph[bridge].push(modelName);
-                }
-
-                return graph;
-            };
-
-            const findPath = (start: string, end: string) => {
-                const cacheKey = `${start}-${end}`;
-                if (pathsMap.has(cacheKey)) return pathsMap.get(cacheKey);
-
-                const visited = new Set();
-                const parent: Record<string, string | null> = {};
-                const queue: string[] = [start];
-                parent[start] = null;
-
-                for (let i = 0; i < queue.length; i++) {
-                    const node = queue[i];
-
-                    if (node === end) {
-                        const path: string[] = [];
-                        for (let cur: string | null = end; cur; cur = parent[cur]) {
-                            path.push(cur);
-                        }
-                        path.reverse();
-                        pathsMap.set(cacheKey, path);
-                        return path;
-                    }
-
-                    if (!visited.has(node)) {
-                        visited.add(node);
-                        for (const neighbor of graph[node] || []) {
-                            if (!(neighbor in parent)) {
-                                parent[neighbor] = node;
-                                queue.push(neighbor);
-                            }
-                        }
-                    }
-                }
-
-                return null;
-            };
-
-            let graph = cache.get("graph");
-            let pathsMap = cache.get("paths");
-
-            if (!graph) {
-                graph = buildGraph();
-                cache.set("graph", graph);
+        let graph = cache.get("graph");
+        let paths = cache.get("paths");
+        if (!graph) {
+            graph = {};
+            for (const [name, conv] of Object.entries(colorModels)) {
+                const { bridge } = conv as ColorModelConverter;
+                graph[name] = [...(graph[name] || []), bridge];
+                graph[bridge] = [...(graph[bridge] || []), name];
             }
-            if (!pathsMap) {
-                pathsMap = new Map();
-                cache.set("paths", pathsMap);
-            }
-
-            const path = findPath(currentModel, targetModel);
-
-            if (!path) {
-                throw new Error(`Cannot convert from ${currentModel} to ${targetModel}. No path found.`);
-            }
-
-            for (let i = 0; i < path.length - 1; i++) {
-                const from = path[i];
-                const to = path[i + 1];
-
-                const conv = colorModels[from as ColorModel] as ColorModelConverter;
-                const toConv = colorModels[to as ColorModel] as ColorModelConverter;
-
-                if (conv.toBridge && conv.bridge === to) {
-                    value = conv.toBridge(value);
-                } else if (toConv?.fromBridge && toConv.bridge === from) {
-                    value = toConv.fromBridge(value);
-                } else {
-                    throw new Error(`No conversion found between ${from} and ${to}`);
-                }
-            }
+            cache.set("graph", graph);
+        }
+        if (!paths) {
+            paths = new Map();
+            cache.set("paths", paths);
         }
 
-        return new Color(targetModel as T, [...value.slice(0, 3), currentCoords[3] ?? 1]);
+        const key = `${from}-${to}`;
+        const coords = this.coords.slice(0, 3);
+
+        if (!paths.has(key)) {
+            const queue = [from],
+                parent: Record<string, string | null> = { [from]: null };
+            for (let i = 0; i < queue.length; i++) {
+                const node = queue[i];
+                if (node === to) break;
+                for (const next of graph[node] || []) {
+                    if (!(next in parent)) {
+                        parent[next] = node;
+                        queue.push(next);
+                    }
+                }
+            }
+            const path: string[] = [];
+            for (let cur: string | null = to; cur; cur = parent[cur]) path.push(cur);
+            path.reverse();
+            if (!path.length || path[0] !== from) {
+                throw new Error(`Cannot convert from ${from} to ${to}. No path found.`);
+            }
+            paths.set(key, path);
+        }
+
+        let value = [...coords];
+        const path = paths.get(key)!;
+        for (let i = 0; i < path.length - 1; i++) {
+            const a = path[i] as ColorModel,
+                b = path[i + 1] as ColorModel;
+            const convA = colorModels[a] as ColorModelConverter;
+            const convB = colorModels[b] as ColorModelConverter;
+
+            if (convA.toBridge && convA.bridge === b) value = convA.toBridge(value);
+            else if (convB.fromBridge && convB.bridge === a) value = convB.fromBridge(value);
+            else throw new Error(`No conversion found between ${a} and ${b}.`);
+        }
+
+        return new Color(to as T, [...value.slice(0, 3), this.coords[3] ?? 1]);
     }
 
     /**
-     * Formats the color as a string in its current color model.
+     * Formats this color as a string in its current model.
      *
-     * @param options - Formatting options.
-     * @returns The color formatted as a string in its current model.
+     * @param options - Optional formatting options.
+     * @returns The formatted color string.
      */
-    toString(options?: FormattingOptions) {
-        return this.to(this.model, options);
+    toString(options: FormattingOptions = {}) {
+        const { format } = colorTypes[this.model] as ColorConverter;
+        const { legacy = false, fit = config.defaults.fit, precision, units = false } = options;
+        return format?.(this.coords, { legacy, fit, precision, units }) as string;
     }
 
     /**
-     * Converts the color instance to an object representation based on the specified options.
+     * Returns the color as an object of component values.
      *
-     * @param options - Optional configuration for retrieving color coordinates.
-     * @returns An object with keys for each color component and "alpha", mapped to their numeric values.
-     * @throws If the color model does not have defined components.
+     * @param options - Optional retrieval options.
+     * @returns An object mapping each component (and alpha) to its numeric value.
+     * @throws If the model has no defined components.
      */
     toObject(options: GetOptions = {}) {
-        const { model } = this;
         const coords = this.toArray(options);
-
-        const { components } = colorModels[model] as unknown as Record<
+        const { components } = colorModels[this.model] as unknown as Record<
             string,
             Record<Component<M> | "alpha", ComponentDefinition>
         >;
 
-        if (!components) {
-            throw new Error(`Model ${model} does not have defined components.`);
-        }
+        if (!components) throw new Error(`Model ${this.model} does not have defined components.`);
 
-        components.alpha = {
-            index: 3,
-            value: [0, 1],
-            precision: 3,
+        const fullComponents = {
+            ...components,
+            alpha: { index: 3, value: [0, 1], precision: 3 },
         };
 
-        // eslint-disable-next-line no-unused-vars
-        const result: { [key in Component<M> | "alpha"]: number } = {} as {
-            [key in Component<M> | "alpha"]: number; // eslint-disable-line no-unused-vars
-        };
-
-        for (const [comp, { index }] of Object.entries(components)) {
-            result[comp as Component<M>] = coords[index];
-        }
-
-        result.alpha = coords[3];
+        const result = {} as { [key in Component<M> | "alpha"]: number }; // eslint-disable-line no-unused-vars
+        for (const [name, { index }] of Object.entries(fullComponents))
+            result[name as Component<M> | "alpha"] = coords[index];
 
         return result;
     }
 
     /**
-     * Converts the color instance to an array representation, optionally normalizing and fitting the color components.
+     * Returns the color as an array of component values, optionally normalized and fitted.
      *
-     * @param options - Configuration options for conversion.
-     * @returns An array containing the normalized color components and alpha value.
-     * @throws If the color model does not have defined components.
+     * @param options - Conversion configuration.
+     * @returns An array of normalized color components and alpha.
+     * @throws If the model has no defined components.
      */
     toArray(options: GetOptions = {}) {
-        const { fit: fitMethod = "none", precision } = options;
+        const { fit: method = config.defaults.fit, precision } = options;
         const { model, coords } = this;
-
         const { components } = colorModels[model] as unknown as Record<
             string,
             Record<Component<M> | "alpha", ComponentDefinition>
         >;
 
-        if (!components) {
-            throw new Error(`Model ${model} does not have defined components.`);
-        }
+        if (!components) throw new Error(`Model ${model} does not have defined components.`);
 
-        components.alpha = {
-            index: 3,
-            value: [0, 1],
-            precision: 3,
+        const defs = {
+            ...components,
+            alpha: { index: 3, value: [0, 1], precision: 3 },
         };
 
-        const normalized = coords.slice(0, 3).map((c, i) => {
-            const componentProps: ComponentDefinition[] = [];
-            for (const [, props] of Object.entries(components)) {
-                componentProps[props.index] = props;
-                componentProps[3] = { index: 3, value: [0, 1], precision: 3 };
-            }
+        const normalize = (c: number, i: number) => {
+            const v = Object.values(defs)[i]?.value;
+            const [min, max] = Array.isArray(v) ? v : v === "angle" ? [0, 360] : [0, 100];
 
-            const value = componentProps[i]?.value;
-            const [min, max] = Array.isArray(value) ? value : value === "angle" ? [0, 360] : [0, 100];
             if (Number.isNaN(c)) return 0;
             if (c === Infinity) return max;
             if (c === -Infinity) return min;
             return typeof c === "number" ? c : 0;
+        };
+
+        const norm = coords.slice(0, 3).map(normalize);
+        const fitted = fit(norm, model, {
+            method: method as FitMethod,
+            precision,
         });
-
-        if (fitMethod) {
-            const clipped = fit(normalized.slice(0, 3), model, {
-                method: fitMethod as FitMethod,
-                precision: "precision" in options ? precision : null,
-            });
-            return [...clipped.slice(0, 3), coords[3]];
-        }
-
-        return [...normalized.slice(0, 3), coords[3]];
+        return [...fitted.slice(0, 3), coords[3]];
     }
 
     /**
-     * Returns a new `Color` instance with updated color components.
+     * Returns a new `Color` instance with updated or replaced component values.
      *
-     * @param values - Either a partial object mapping component names to new values or updater functions,
-     *                 or a function that receives the current components and returns a partial object of updated values.
-     * @returns A new `Color` instance with the updated components.
-     * @throws If the color model does not have defined components.
+     * This method supports several flexible update styles:
      *
-     * @example
+     * ### 1. Direct component update (object)
+     * Update one or more components directly by providing a partial object.
      * ```typescript
-     * // Direct value update
-     * set({ l: 50 }) // sets lightness to 50%
+     * color.with({ l: 50 })
+     * color.with({ r: 128, g: 64 })
+     * ```
      *
-     * // Using updater functions
-     * set({ r: r => r * 2 }) // doubles the red component
+     * ### 2. Functional component update (object with updater functions)
+     * You can use updater functions to modify existing component values dynamically.
+     * ```typescript
+     * color.with({ r: r => r * 2 })
+     * ```
      *
-     * // Using a function that returns multiple updates
-     * set(({ r, g, b }) => ({
+     * ### 3. Functional bulk update (function returning object)
+     * Pass a function that receives all current components and returns updated ones.
+     * ```typescript
+     * color.with(({ r, g, b }) => ({
      *   r: r * 0.393 + g * 0.769 + b * 0.189,
      *   g: r * 0.349 + g * 0.686 + b * 0.168,
      *   b: r * 0.272 + g * 0.534 + b * 0.131,
-     * })) // applies a sepia filter
+     * }));
      * ```
+     *
+     * ### 4. Direct coordinate array replacement
+     * Replace all component coordinates directly via an array.
+     * ```typescript
+     * color.with([0.5, 0.6, 0.7, 1]);
+     * ```
+     *
+     * ### 5. Functional coordinate update (function returning array)
+     * The updater function can also return a new coordinate array.
+     * ```typescript
+     * color.with(({ r, g, b }) => [r * 0.5, g * 0.5, b * 0.5, 1]);
+     * ```
+     *
+     * @param values - Either:
+     * - a partial object of component values,
+     * - an updater function returning an object or array,
+     * - or an array of new coordinates.
+     * @returns A new `Color` instance with updated values.
+     * @throws If the color model has no defined components.
      */
+    /* eslint-disable no-unused-vars */
     with(
-        values: // eslint-disable-next-line no-unused-vars
-        | Partial<{ [K in Component<M> | "alpha"]: number | ((prev: number) => number) }>
-            // eslint-disable-next-line no-unused-vars
-            | ((components: { [K in Component<M> | "alpha"]: number }) => Partial<{
-                  // eslint-disable-next-line no-unused-vars
-                  [K in Component<M> | "alpha"]?: number;
-              }>)
+        values:
+            | Partial<{ [K in Component<M> | "alpha"]: number | ((prev: number) => number) }>
+            | ((components: { [K in Component<M> | "alpha"]: number }) =>
+                  | Partial<{ [K in Component<M> | "alpha"]: number }>
+                  | (number | undefined)[])
+            | (number | undefined)[]
     ) {
+        /* eslint-enable no-unused-vars */
         const { model } = this;
-        const coords = this.toArray();
-
+        const coords = this.toArray({ fit: "none", precision: null });
         const { components } = colorModels[model] as unknown as Record<
             string,
             Record<Component<M> | "alpha", ComponentDefinition>
         >;
 
-        if (!components) {
-            throw new Error(`Model ${model} does not have defined components.`);
-        }
+        if (!components) throw new Error(`Model ${model} does not have defined components.`);
 
-        components.alpha = {
-            index: 3,
-            value: [0, 1],
-            precision: 3,
+        const defs = {
+            ...components,
+            alpha: { index: 3, value: [0, 1], precision: 3 },
         };
 
-        const compNames = Object.keys(components) as (Component<M> | "alpha")[];
+        const names = Object.keys(defs) as (Component<M> | "alpha")[];
 
-        let newAlpha = coords[3];
+        let newValues:
+            | Partial<{ [K in Component<M> | "alpha"]: number | ((prev: number) => number) }> // eslint-disable-line no-unused-vars
+            | (number | undefined)[];
 
         if (typeof values === "function") {
-            const currentComponents = {} as { [K in Component<M> | "alpha"]: number }; // eslint-disable-line no-unused-vars
-            compNames.forEach((comp) => {
-                const { index } = components[comp as keyof typeof components] as ComponentDefinition;
-                currentComponents[comp] = coords[index];
+            const result = values(
+                Object.fromEntries(names.map((c) => [c, coords[defs[c].index]])) as Record<
+                    Component<M> | "alpha",
+                    number
+                >
+            );
+            newValues = result;
+        } else {
+            newValues = values;
+        }
+
+        if (Array.isArray(newValues)) {
+            const adjusted = coords.map((curr, i) => {
+                const incoming = newValues[i];
+                const { value } = Object.values(defs).find((d) => d.index === i)!;
+
+                if (typeof incoming !== "number") return curr;
+
+                const [min, max] = Array.isArray(value) ? value : value === "angle" ? [0, 360] : [0, 100];
+                if (Number.isNaN(incoming)) return 0;
+                if (incoming === Infinity) return max;
+                if (incoming === -Infinity) return min;
+                return incoming;
             });
-            values = values(currentComponents);
+
+            return new Color(model, [...adjusted.slice(0, 3), coords[3]]);
         }
 
-        compNames.forEach((comp) => {
-            if (comp in values) {
-                const { index, value } = components[comp as keyof typeof components] as ComponentDefinition;
-                const currentValue = coords[index];
-                const valueOrFunc = values[comp];
-                let newValue = typeof valueOrFunc === "function" ? valueOrFunc(currentValue) : valueOrFunc;
+        const next = [...coords];
+        for (const name of names) {
+            if (!(name in newValues)) continue;
+            const { index, value } = defs[name];
+            const current = coords[index];
+            const raw = newValues[name];
+            let val = typeof raw === "function" ? raw(current) : raw;
 
-                if (typeof newValue === "number") {
-                    const [min, max] = Array.isArray(value) ? value : value === "angle" ? [0, 360] : [0, 100];
-                    if (Number.isNaN(newValue)) {
-                        newValue = 0;
-                    } else if (newValue === Infinity) {
-                        newValue = max;
-                    } else if (newValue === -Infinity) {
-                        newValue = min;
-                    }
-                }
-
-                if (comp === "alpha") {
-                    newAlpha = newValue as number;
-                } else {
-                    coords[index] = newValue as number;
-                }
+            if (typeof val === "number") {
+                const [min, max] = Array.isArray(value) ? value : value === "angle" ? [0, 360] : [0, 100];
+                if (Number.isNaN(val)) val = 0;
+                else if (val === Infinity) val = max;
+                else if (val === -Infinity) val = min;
             }
-        });
-
-        return new Color(model, [...coords.slice(0, 3), newAlpha]);
-    }
-
-    /**
-     * Returns a new `Color` instance with updated coordinate values.
-     *
-     * @param newCoords - An array of new coordinate values to apply to the color model.
-     * @returns A new `Color` instance with the adjusted coordinates.
-     * @throws If the color model does not have defined components.
-     */
-    withCoords(newCoords: (number | undefined)[]) {
-        const { model } = this;
-        const coords = this.toArray();
-
-        const { components } = colorModels[model] as unknown as Record<
-            string,
-            Record<Component<M> | "alpha", ComponentDefinition>
-        >;
-
-        if (!components) {
-            throw new Error(`Model ${model} does not have defined components.`);
+            next[index] = val as number;
         }
 
-        components.alpha = {
-            index: 3,
-            value: [0, 1],
-            precision: 3,
-        };
-
-        const indexToComponent = Object.values(components).reduce(
-            (map: { [index: number]: ComponentDefinition }, def) => {
-                map[def.index] = def;
-                return map;
-            },
-            {} as { [index: number]: ComponentDefinition }
-        );
-
-        const adjustedCoords = coords.map((current, index) => {
-            const incoming = newCoords[index];
-            const { value } = indexToComponent[index];
-            if (!value) return current;
-
-            if (typeof incoming !== "number") return current;
-
-            const [min, max] = Array.isArray(value) ? value : value === "angle" ? [0, 360] : [0, 100];
-
-            if (Number.isNaN(incoming)) return 0;
-            if (incoming === Infinity) return max;
-            if (incoming === -Infinity) return min;
-
-            return incoming;
-        });
-
-        return new Color(model, [...adjustedCoords.slice(0, 3), coords[3]]);
+        return new Color(model, [...next.slice(0, 3), next[3] ?? coords[3]]);
     }
 
     /**
      * Mixes this color with another by a specified amount.
      *
-     * @param other - The color to mix with. Can be a string, or Color instance.
-     * @param options - Options for mixing the colors.
-     * @return A new Color instance representing the mixed color.
+     * @param other - The color to mix with. Can be a string or a `Color` instance.
+     * @param options - Options for how the colors are mixed.
+     * @returns A new `Color` instance representing the mixed color.
      * @throws If the color model does not have defined components.
      */
     mix(other: Color<ColorModel> | string, options: MixOptions = {}): Color<M> {
-        const interpolate = (from: number, to: number, t: number, method: string) => {
-            const deltaHue = (a: number, b: number) => {
-                const d = (((b - a) % 360) + 360) % 360;
-                return d > 180 ? d - 360 : d;
-            };
-
-            const deltaHueLong = (a: number, b: number) => {
-                const short = deltaHue(a, b);
-                return short >= 0 ? short - 360 : short + 360;
-            };
-
-            let mixed: number;
-
-            switch (method) {
-                case "shorter":
-                    mixed = from + t * deltaHue(from, to);
-                    break;
-                case "longer":
-                    mixed = from + t * deltaHueLong(from, to);
-                    break;
-                case "increasing":
-                    mixed = from * (1 - t) + (to < from ? to + 360 : to) * t;
-                    break;
-                case "decreasing":
-                    mixed = from * (1 - t) + (to > from ? to - 360 : to) * t;
-                    break;
-                default:
-                    throw new Error("Invalid hue interpolation method");
-            }
-
-            return ((mixed % 360) + 360) % 360;
-        };
-
         const { model } = this;
-        const coords = this.toArray();
-
-        const { hue = "shorter", amount = 0.5, easing = "linear", gamma = 1.0 } = options;
+        const coords = this.toArray({ fit: "none", precision: null });
         const { components } = colorModels[model] as unknown as Record<
             string,
             Record<Component<M> | "alpha", ComponentDefinition>
         >;
 
-        if (!components) {
-            throw new Error(`Model ${model} does not have defined components.`);
-        }
+        if (!components) throw new Error(`Model ${model} does not have defined components.`);
 
-        components.alpha = {
-            index: 3,
-            value: [0, 1],
-            precision: 3,
+        const { hue = "shorter", amount = 0.5, easing = "linear", gamma = 1.0 } = options;
+
+        const defs = {
+            ...components,
+            alpha: { index: 3, value: [0, 1], precision: 3 },
         };
 
-        const t = 1 - Math.max(0, Math.min(1 - amount, 1));
-        const easedT = (typeof easing === "function" ? easing : EASINGS[easing])(t);
-        const gammaCorrectedT = Math.pow(easedT, 1 / gamma);
+        const hueDelta = (a: number, b: number) => {
+            const d = (((b - a) % 360) + 360) % 360;
+            return d > 180 ? d - 360 : d;
+        };
 
+        const hueDeltaLong = (a: number, b: number) =>
+            hueDelta(a, b) >= 0 ? hueDelta(a, b) - 360 : hueDelta(a, b) + 360;
+
+        const interpolateHue = (a: number, b: number, t: number, method: string) => {
+            const wrapped = (v: number) => ((v % 360) + 360) % 360;
+            switch (method) {
+                case "shorter":
+                    return wrapped(a + t * hueDelta(a, b));
+                case "longer":
+                    return wrapped(a + t * hueDeltaLong(a, b));
+                case "increasing":
+                    return wrapped(a * (1 - t) + (b < a ? b + 360 : b) * t);
+                case "decreasing":
+                    return wrapped(a * (1 - t) + (b > a ? b - 360 : b) * t);
+                default:
+                    throw new Error(`Invalid hue interpolation method: ${method}`);
+            }
+        };
+
+        const t = Math.max(0, Math.min(1, amount));
+        const ease = typeof easing === "function" ? easing : EASINGS[easing];
+        const tt = Math.pow(ease(t), 1 / gamma);
+
+        const otherColor = (typeof other === "string" ? Color.from(other) : other) as Color<M>;
         const thisCoords = coords.slice(0, 3);
-        const otherColor = typeof other === "string" ? (Color.from(other) as Color<M>) : other;
-        const otherCoords = otherColor.in(model).toArray().slice(0, 3);
+        const otherCoords = otherColor.in(model).toArray({ fit: "none", precision: null }).slice(0, 3) as number[];
 
         const thisAlpha = coords[3];
         const otherAlpha = otherColor.coords[3];
 
-        const hueIndex = Object.entries(components).find(([k]) => k === "h")?.[1].index;
+        const hueIndex = Object.entries(defs).find(([k]) => k === "h")?.[1].index;
 
-        if (amount === 0) {
-            return new Color(model, [...thisCoords, thisAlpha]);
-        } else if (amount === 1) {
-            return new Color(model, [...otherCoords, otherAlpha]);
-        } else if (thisAlpha < 1 || otherAlpha < 1) {
-            const premixed = thisCoords.map((start, index) => {
-                const end = otherCoords[index];
+        if (t === 0) return new Color(model, [...thisCoords, thisAlpha]);
+        if (t === 1) return new Color(model, [...otherCoords, otherAlpha]);
 
-                if (index === hueIndex) {
-                    return interpolate(start, end, gammaCorrectedT, hue);
-                }
-
-                const premultA = start * thisAlpha;
-                const premultB = end * otherAlpha;
-                return premultA * gammaCorrectedT + premultB * (1 - gammaCorrectedT);
+        if (thisAlpha < 1 || otherAlpha < 1) {
+            const premixed = thisCoords.map((start, i) => {
+                const end = otherCoords[i];
+                if (i === hueIndex) return interpolateHue(start, end, tt, hue);
+                const a = start * thisAlpha;
+                const b = end * otherAlpha;
+                return a * (1 - tt) + b * tt;
             });
 
-            const mixedAlpha = thisAlpha * gammaCorrectedT + otherAlpha * (1 - gammaCorrectedT);
-
+            const mixedAlpha = thisAlpha * (1 - tt) + otherAlpha * tt;
             const mixed =
                 mixedAlpha > 0
                     ? premixed.map((c, i) => (i === hueIndex ? c : c / mixedAlpha))
                     : thisCoords.map((_, i) => (i === hueIndex ? premixed[i] : 0));
 
             return new Color(model, [...mixed, mixedAlpha]);
-        } else {
-            const mixedCoords = thisCoords.map((start, index) => {
-                const compEntry = Object.entries(components).find(([, def]) => def.index === index);
-                if (!compEntry) return start;
-
-                const [, meta] = compEntry;
-                const end = otherCoords[index];
-
-                if (meta.value === "angle") {
-                    return interpolate(start, end, gammaCorrectedT, hue);
-                }
-
-                return start + (end - start) * gammaCorrectedT;
-            });
-
-            return new Color(model, [...mixedCoords, 1]);
         }
+
+        const mixedCoords = thisCoords.map((start, i) => {
+            const entry = Object.values(defs).find((d) => d.index === i);
+            if (!entry) return start;
+            const end = otherCoords[i];
+            return entry.value === "angle" ? interpolateHue(start, end, tt, hue) : start + (end - start) * tt;
+        });
+
+        return new Color(model, [...mixedCoords, 1]);
     }
 
     /**
-     * Calculates the contrast ratio between this color and another color, following the WCAG 2.1 formula.
+     * Fits this color within the specified gamut using a given method.
      *
-     * @param other - The color to compare against. Can be a `Color` instance or a color string.
-     * @returns The contrast ratio as a number (1 to 21). Ratios above 4.5 are generally considered accessible for normal text.
+     * @param gamut - Target color space.
+     * @param method - Fitting method (default to `config.defaults.fit` value).
+     * @returns A new `Color` instance fitted to the gamut.
+     * @throws If the gamut is unsupported.
+     */
+    within(gamut: ColorSpace, method: FitMethod = config.defaults.fit) {
+        const g = gamut.trim().toLowerCase() as ColorSpace;
+        if (g in colorSpaces === false) throw new Error(`Unsupported color gamut: '${g}'.`);
+
+        const fitted = this.in(g).toArray({ fit: method, precision: null });
+        return new Color(g, fitted).in(this.model);
+    }
+
+    /**
+     * Calculates the WCAG 2.1 contrast ratio between this color and another.
+     *
+     * @param other - The comparison color (instance or string).
+     * @returns Contrast ratio from 1 to 21.
      *
      * @remarks
-     * - WCAG 2.1 is the standard for contrast, but may be limited for modern displays.
-     * - Consider using APCA for more accurate results..
+     * - Ratios ≥ 4.5 are generally accessible for normal text.
+     * - For perceptual accuracy, consider using APCA instead.
      */
     contrast(other: Color<ColorModel> | string) {
-        const otherColor = typeof other === "string" ? (Color.from(other) as Color<ColorModel>) : other;
-        const [, L_bg] = otherColor.in("xyz-d65").toArray();
-        const [, L_text] = this.in("xyz-d65").toArray();
-        return (Math.max(L_text, L_bg) + 0.05) / (Math.min(L_text, L_bg) + 0.05);
+        const o = typeof other === "string" ? Color.from(other) : other;
+        const [, L1] = this.in("xyz-d65").toArray({ fit: "none", precision: null });
+        const [, L2] = o.in("xyz-d65").toArray({ fit: "none", precision: null });
+        return (Math.max(L1, L2) + 0.05) / (Math.min(L1, L2) + 0.05);
     }
 
     /**
      * Calculates the color difference (ΔEOK) between the current color and another color using the OKLAB color space.
      *
      * @param other - The other color to compare against (as a Color instance or string).
-     * @returns The ΔEOK value (a non-negative number; smaller indicates more similar colors).
+     * @returns A number in range (0-1) (smaller indicates more similar colors).
      *
      * @remarks
      * This method uses the Euclidean distance in OKLAB color space, scaled to approximate a Just Noticeable Difference (JND) of ~2.
@@ -749,13 +640,14 @@ export class Color<M extends ColorModel = ColorModel> {
      * The result is normalized by a factor of 100 to align with OKLAB's L range (0-1) and approximate the JND scale.
      */
     deltaEOK(other: Color<ColorModel> | string) {
-        const [L1, a1, b1] = this.in("oklab").toArray();
-        const [L2, a2, b2] = (typeof other === "string" ? Color.from(other) : other).in("oklab").toArray();
+        const coordsOptions = { fit: "none", precision: null } as const;
+        const [L1, a1, b1] = this.in("oklab").toArray(coordsOptions);
+        const [L2, a2, b2] = (typeof other === "string" ? Color.from(other) : other).in("oklab").toArray(coordsOptions);
 
         const ΔL = L1 - L2;
-        const Δa = a1 - a2;
-        const Δb = b1 - b2;
-        const distance = Math.sqrt(ΔL ** 2 + Δa ** 2 + Δb ** 2);
+        const ΔA = a1 - a2;
+        const ΔB = b1 - b2;
+        const distance = Math.sqrt(ΔL ** 2 + ΔA ** 2 + ΔB ** 2);
 
         return distance * 100;
     }
@@ -765,17 +657,18 @@ export class Color<M extends ColorModel = ColorModel> {
      * This is a simple Euclidean distance in LAB color space.
      *
      * @param other - The other color to compare against (as a Color instance or string).
-     * @returns The ΔE76 value — a non-negative number where smaller values indicate more similar colors.
+     * @returns A number in range (0-1) (smaller indicates more similar colors).
      */
     deltaE76(other: Color<ColorModel> | string) {
-        const [L1, a1, b1] = this.in("lab").toArray();
-        const [L2, a2, b2] = (typeof other === "string" ? Color.from(other) : other).in("lab").toArray();
+        const coordsOptions = { fit: "none", precision: null } as const;
+        const [L1, a1, b1] = this.in("lab").toArray(coordsOptions);
+        const [L2, a2, b2] = (typeof other === "string" ? Color.from(other) : other).in("lab").toArray(coordsOptions);
 
         const ΔL = L1 - L2;
         const ΔA = a1 - a2;
         const ΔB = b1 - b2;
 
-        return Math.sqrt(ΔL * ΔL + ΔA * ΔA + ΔB * ΔB);
+        return Math.hypot(ΔL, ΔA, ΔB);
     }
 
     /**
@@ -783,11 +676,12 @@ export class Color<M extends ColorModel = ColorModel> {
      * This method improves perceptual accuracy over CIE76 by applying weighting factors.
      *
      * @param other - The other color to compare against (as a Color instance or string).
-     * @returns The ΔE94 value — a non-negative number where smaller values indicate more similar colors.
+     * @returns A number in range (0-1) (smaller indicates more similar colors).
      */
     deltaE94(other: Color<ColorModel> | string) {
-        const [L1, a1, b1] = this.in("lab").toArray();
-        const [L2, a2, b2] = (typeof other === "string" ? Color.from(other) : other).in("lab").toArray();
+        const coordsOptions = { fit: "none", precision: null } as const;
+        const [L1, a1, b1] = this.in("lab").toArray(coordsOptions);
+        const [L2, a2, b2] = (typeof other === "string" ? Color.from(other) : other).in("lab").toArray(coordsOptions);
 
         const ΔL = L1 - L2;
         const ΔA = a1 - a2;
@@ -815,11 +709,12 @@ export class Color<M extends ColorModel = ColorModel> {
      * This is the most perceptually accurate method, accounting for interactions between hue, chroma, and lightness.
      *
      * @param other - The other color to compare against (as a Color instance or string).
-     * @returns The ΔE2000 value — a non-negative number where smaller values indicate more similar colors.
+     * @returns A number in range (0-1) (smaller indicates more similar colors).
      */
     deltaE2000(other: Color<ColorModel> | string) {
-        const [L1, a1, b1] = this.in("lab").toArray();
-        const [L2, a2, b2] = (typeof other === "string" ? Color.from(other) : other).in("lab").toArray();
+        const coordsOptions = { fit: "none", precision: null } as const;
+        const [L1, a1, b1] = this.in("lab").toArray(coordsOptions);
+        const [L2, a2, b2] = (typeof other === "string" ? Color.from(other) : other).in("lab").toArray(coordsOptions);
 
         const π = Math.PI,
             d2r = π / 180,
@@ -899,11 +794,11 @@ export class Color<M extends ColorModel = ColorModel> {
     }
 
     /**
-     * Compares the current color object with another color string or Color object.
+     * Checks numeric equality with another color within a tolerance.
      *
-     * @param other - The other color to compare against (as a Color instance or string).
-     * @param epsilon - Tolerance for floating point comparison. Defaults to 1e-5.
-     * @returns Whether the two colors are equal within the given epsilon.
+     * @param other - Color or string to compare.
+     * @param epsilon - Allowed floating-point difference (default: 1e-5).
+     * @returns `true` if equal within tolerance.
      *
      * @remarks
      * - This method checks **numeric equality** in the underlying color space
@@ -917,55 +812,34 @@ export class Color<M extends ColorModel = ColorModel> {
      *   - {@link deltaE2000} (most accurate, accounts for perceptual interactions)
      */
     equals(other: Color<ColorModel> | string, epsilon = 1e-5) {
-        const otherColor = typeof other === "string" ? (Color.from(other) as Color<M>) : other;
+        const o = typeof other === "string" ? Color.from(other) : other;
 
-        if (otherColor.model !== this.model) {
-            return this.coords.every((value, i) => Math.abs(value - otherColor.coords[i]) <= epsilon);
-        }
+        if (o.model === this.model) return this.coords.every((v, i) => Math.abs(v - o.coords[i]) <= epsilon);
 
-        const thisXyz = this.in("xyz-d65").toArray();
-        const otherXyz = otherColor.in("xyz-d65").toArray();
-        return thisXyz.every((value, i) => Math.abs(value - otherXyz[i]) <= epsilon);
+        const a = this.in("xyz-d65").toArray({ fit: "none", precision: null });
+        const b = o.in("xyz-d65").toArray({ fit: "none", precision: null });
+        return a.every((v, i) => Math.abs(v - b[i]) <= epsilon);
     }
 
     /**
-     * Checks if the current color is within the specified gamut.
+     * Determines whether this color lies within a given gamut.
      *
-     * @param gamut - The color space to check against.
-     * @param epsilon - Tolerance for floating point comparison. Defaults to 1e-5.
-     * @returns `true` if the color is within the gamut, `false` otherwise.
+     * @param gamut - Target color space.
+     * @param epsilon - Floating-point tolerance (default: 1e-5).
+     * @returns `true` if inside gamut, else `false`.
      */
-    inGamut(gamut: ColorSpace, epsilon?: number): boolean; // eslint-disable-line no-unused-vars
-    inGamut(gamut: string, epsilon?: number): boolean; // eslint-disable-line no-unused-vars
     inGamut(gamut: ColorSpace | string, epsilon = 1e-5) {
-        const cleanedGamut = gamut.trim().toLowerCase();
+        const g = gamut.trim().toLowerCase();
+        if (!(g in colorSpaces)) throw new Error(`Unsupported color gamut: '${g}'.`);
 
-        if (cleanedGamut in colorSpaces === false) {
-            throw new Error(`Unsupported color gamut: '${cleanedGamut}'.`);
-        }
-        const { components, targetGamut } = colorModels[cleanedGamut as ColorSpace];
+        const { components, targetGamut } = colorModels[g as ColorSpace];
+        if (!targetGamut) return true;
 
-        if (targetGamut === null) return true;
-
-        const coords = this.in(cleanedGamut).toArray();
-
-        for (const [, props] of Object.entries(components)) {
-            const value = coords[props.index];
-            const [min, max] = Array.isArray(props.value) ? props.value : props.value === "angle" ? [0, 360] : [0, 100];
-            if (value < min - epsilon || value > max + epsilon) {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    /**
-     * Clones the current `Color` instance.
-     *
-     * @returns A copy of the current `Color` instance.
-     */
-    clone() {
-        return new Color(this.model, this.coords);
+        const coords = this.in(g).toArray({ fit: "none", precision: null });
+        return Object.values(components).every(({ index, value }) => {
+            const v = coords[index];
+            const [min, max] = Array.isArray(value) ? value : value === "angle" ? [0, 360] : [0, 100];
+            return v >= min - epsilon && v <= max + epsilon;
+        });
     }
 }

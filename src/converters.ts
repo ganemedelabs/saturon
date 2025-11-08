@@ -201,17 +201,13 @@ export const colorSpaces = {
         toLinear: (c: number) => {
             const sign = c < 0 ? -1 : 1;
             const abs = Math.abs(c);
-            if (abs <= 0.04045) {
-                return sign * (abs / 12.92);
-            }
+            if (abs <= 0.04045) return sign * (abs / 12.92);
             return sign * Math.pow((abs + 0.055) / 1.055, 2.4);
         },
         fromLinear: (c: number) => {
             const sign = c < 0 ? -1 : 1;
             const abs = Math.abs(c);
-            if (abs > 0.0031308) {
-                return sign * (1.055 * Math.pow(abs, 1 / 2.4) - 0.055);
-            }
+            if (abs > 0.0031308) return sign * (1.055 * Math.pow(abs, 1 / 2.4) - 0.055);
             return sign * (12.92 * abs);
         },
         toBridgeMatrix: MATRICES.SRGB_to_XYZD65,
@@ -229,17 +225,13 @@ export const colorSpaces = {
         toLinear: (c: number) => {
             const sign = c < 0 ? -1 : 1;
             const abs = Math.abs(c);
-            if (abs <= 0.04045) {
-                return sign * (abs / 12.92);
-            }
+            if (abs <= 0.04045) return sign * (abs / 12.92);
             return sign * Math.pow((abs + 0.055) / 1.055, 2.4);
         },
         fromLinear: (c: number) => {
             const sign = c < 0 ? -1 : 1;
             const abs = Math.abs(c);
-            if (abs > 0.0031308) {
-                return sign * (1.055 * Math.pow(abs, 1 / 2.4) - 0.055);
-            }
+            if (abs > 0.0031308) return sign * (1.055 * Math.pow(abs, 1 / 2.4) - 0.055);
             return sign * (12.92 * abs);
         },
         toBridgeMatrix: MATRICES.P3_to_XYZD65,
@@ -253,9 +245,7 @@ export const colorSpaces = {
             const β = 0.018053968510807;
             const sign = c < 0 ? -1 : 1;
             const abs = Math.abs(c);
-            if (abs < β * 4.5) {
-                return sign * (abs / 4.5);
-            }
+            if (abs < β * 4.5) return sign * (abs / 4.5);
             return sign * Math.pow((abs + α - 1) / α, 1 / 0.45);
         },
         fromLinear: (c: number) => {
@@ -263,9 +253,7 @@ export const colorSpaces = {
             const β = 0.018053968510807;
             const sign = c < 0 ? -1 : 1;
             const abs = Math.abs(c);
-            if (abs > β) {
-                return sign * (α * Math.pow(abs, 0.45) - (α - 1));
-            }
+            if (abs > β) return sign * (α * Math.pow(abs, 0.45) - (α - 1));
             return sign * (4.5 * abs);
         },
         toBridgeMatrix: MATRICES.REC2020_to_XYZD65,
@@ -294,18 +282,14 @@ export const colorSpaces = {
             const Et2 = 16 / 512;
             const sign = c < 0 ? -1 : 1;
             const abs = Math.abs(c);
-            if (abs <= Et2) {
-                return sign * (abs / 16);
-            }
+            if (abs <= Et2) return sign * (abs / 16);
             return sign * Math.pow(abs, 1.8);
         },
         fromLinear: (c: number) => {
             const Et = 1 / 512;
             const sign = c < 0 ? -1 : 1;
             const abs = Math.abs(c);
-            if (abs >= Et) {
-                return sign * Math.pow(abs, 1 / 1.8);
-            }
+            if (abs >= Et) return sign * Math.pow(abs, 1 / 1.8);
             return sign * (16 * abs);
         },
         toBridgeMatrix: MATRICES.ProPhoto_to_XYZD50,
@@ -372,9 +356,9 @@ export const colorModels = {
         supportsLegacy: true,
         alphaVariant: "hsla",
         components: {
-            h: { index: 0, value: "angle", precision: 1 },
-            s: { index: 1, value: "percentage", precision: 1 },
-            l: { index: 2, value: "percentage", precision: 1 },
+            h: { index: 0, value: "angle", precision: 0 },
+            s: { index: 1, value: "percentage", precision: 0 },
+            l: { index: 2, value: "percentage", precision: 0 },
         },
         bridge: "rgb",
         toBridge: HSL_to_RGB,
@@ -382,9 +366,9 @@ export const colorModels = {
     },
     hwb: {
         components: {
-            h: { index: 0, value: "angle", precision: 1 },
-            w: { index: 1, value: "percentage", precision: 1 },
-            b: { index: 2, value: "percentage", precision: 1 },
+            h: { index: 0, value: "angle", precision: 0 },
+            w: { index: 1, value: "percentage", precision: 0 },
+            b: { index: 2, value: "percentage", precision: 0 },
         },
         bridge: "rgb",
         toBridge: HWB_to_RGB,
@@ -486,7 +470,7 @@ export const colorBases = {
         format: ([r, g, b, a = 1]: number[]) => {
             const toHex = (v: number) => v.toString(16).padStart(2, "0");
             const hex = [r, g, b].map((v) => toHex(Math.round(Math.max(0, Math.min(255, v))))).join("");
-            return `#${hex}${a < 1 ? toHex(Math.round(a * 255)) : ""}`.toUpperCase();
+            return `#${hex}${a < 1 ? toHex(Math.round(a * 255)) : ""}`;
         },
     },
     ...colorFunctions,
@@ -556,7 +540,7 @@ export const colorBases = {
                         } else if (weight > 1) {
                             throw new Error("Percentages greater than 100 are not valid.");
                         }
-                    } else if (rest.startsWith("calc(")) {
+                    } else if (rest.slice(0, 5) === "calc(") {
                         const { expression: calcExpr, end } = extractBalancedExpression(rest, 0);
                         if (!calcExpr) {
                             throw new Error("Malformed calc() weight expression.");
@@ -651,6 +635,8 @@ export const colorBases = {
             const model = inMatch[1];
             let hue = inMatch[2] as HueInterpolationMethod;
 
+            if (model === "rgb") throw new Error(`RGB model is not allowed in color-mix(). Use "srgb" instead.`);
+
             if (hue) {
                 const comps = colorModels[model as ColorModel].components;
                 if (!comps) {
@@ -674,7 +660,7 @@ export const colorBases = {
                 .in(model)
                 .mix(color2.with({ alpha: (a) => a * alphaMultiplier }), { amount, hue })
                 .in("rgb")
-                .toArray();
+                .toArray({ fit: "none", precision: null });
         },
     },
     transparent: {
@@ -715,7 +701,7 @@ export const colorTypes = {
         toBridge: (coords: number[]) => coords,
         parse: (str: string) => {
             const inner = str.slice(15, -1);
-            const [, luminance] = Color.from(inner).in("xyz-d65").toArray();
+            const [, luminance] = Color.from(inner).in("xyz-d65").toArray({ fit: "none", precision: null });
             return luminance > 0.5 ? [0, 0, 0, 1] : [255, 255, 255, 1];
         },
     },
@@ -781,7 +767,9 @@ export const colorTypes = {
                 throw new Error(`Unexpected character: ${char}`);
             }
 
-            const parseValue = (token: string) => (token.endsWith("%") ? parseFloat(token) / 100 : parseFloat(token));
+            const parseValue = (token: string) => {
+                return token[token.length - 1] === "%" ? parseFloat(token) / 100 : parseFloat(token);
+            };
 
             if (tokens.length >= 2 && tokens[1] === ",") {
                 const values = tokens.filter((t) => t !== ",");
@@ -817,7 +805,7 @@ export const colorTypes = {
             if (idx < tokens.length && tokens[idx] === ",") {
                 idx++;
                 const fallbackStr = tokens.slice(idx).join(" ");
-                return Color.from(fallbackStr).in("rgb").toArray();
+                return Color.from(fallbackStr).in("rgb").toArray({ fit: "none", precision: null });
             }
 
             const red = 1 - Math.min(1, c * (1 - k) + k);
@@ -827,7 +815,7 @@ export const colorTypes = {
         },
         fromBridge: (coords: number[]) => coords,
         format: ([red, green, blue, alpha = 1]: number[], options: FormattingOptions = {}) => {
-            const { legacy = false, precision = 3, fit: fitMethod = "clip" } = options;
+            const { legacy = false, precision = 3, fit: fitMethod = config.defaults.fit } = options;
             const [fr, fg, fb] = fit([red, green, blue], "rgb", { method: fitMethod });
 
             const r = fr / 255;
@@ -860,10 +848,10 @@ export const colorTypes = {
         parse: (str: string) => {
             const fnName = "light-dark";
             const fnIndex = str.indexOf(fnName);
-            if (fnIndex === -1) throw new Error("Not a light-dark expression");
+            if (fnIndex === -1) throw new Error("Not a <light-dark()> expression");
 
             const { expression } = extractBalancedExpression(str, fnIndex + fnName.length);
-            if (!expression) throw new Error("Malformed light-dark expression");
+            if (!expression) throw new Error("Malformed <light-dark()> expression");
 
             const inner = expression.slice(1, -1).trim();
 
@@ -902,7 +890,7 @@ export const colorTypes = {
             const [color1, color2] = parts;
 
             const { theme } = config;
-            return Color.from(theme === "light" ? color1 : color2).toArray();
+            return Color.from(theme === "light" ? color1 : color2).toArray({ fit: "none", precision: null });
         },
     },
 } satisfies Record<string, ColorConverter>;
