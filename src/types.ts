@@ -50,6 +50,7 @@ export type SystemColor = keyof typeof systemColors;
 export type OutputType = {
     [K in ColorType]: (typeof colorTypes)[K] extends {
         fromBridge?: (components: number[]) => number[];
+        format?: (coords: number[]) => string | undefined;
     }
         ? K
         : never;

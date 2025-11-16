@@ -1,3 +1,5 @@
+// See https://eslint.org/docs/latest/use/configure/configuration-files for more about configuration files.
+
 import { fixupConfigRules, fixupPluginRules } from "@eslint/compat";
 import typescriptEslint from "@typescript-eslint/eslint-plugin";
 import prettier from "eslint-plugin-prettier";

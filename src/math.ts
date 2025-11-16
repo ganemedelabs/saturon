@@ -225,7 +225,7 @@ export const fitMethods = {
  * @param rgb - [R, G, B] each in range 0–255
  * @returns [X, Y, Z] in range 0–1
  */
-export function RGB_to_XYZD65(rgb: number[]): number[] {
+export function RGB_to_XYZD65(rgb: number[]) {
     const lin_sRGB = rgb.map((v) => {
         const n = v / 255;
         const sign = n < 0 ? -1 : 1,
@@ -241,7 +241,7 @@ export function RGB_to_XYZD65(rgb: number[]): number[] {
  * @param xyz - [X, Y, Z] in range 0–1
  * @returns [R, G, B] each in range 0–255
  */
-export function XYZD65_to_RGB(xyz: number[]): number[] {
+export function XYZD65_to_RGB(xyz: number[]) {
     const linRGB = multiplyMatrices(MATRICES.XYZD65_to_SRGB, xyz);
     const gammaRGB = linRGB.map((v) => {
         const sign = v < 0 ? -1 : 1,
@@ -257,7 +257,7 @@ export function XYZD65_to_RGB(xyz: number[]): number[] {
  * @param hsl - [h, s, l] where H ∈ [0, 360], S ∈ [0, 100], L ∈ [0, 100]
  * @returns [R, G, B] each in range 0–255
  */
-export function HSL_to_RGB([h, s, l]: number[]): number[] {
+export function HSL_to_RGB([h, s, l]: number[]) {
     s /= 100;
     l /= 100;
     const f = (n: number) => {
@@ -274,7 +274,7 @@ export function HSL_to_RGB([h, s, l]: number[]): number[] {
  * @param rgb - [R, G, B] each in range 0–255
  * @returns [H, S, L] where H ∈ [0, 360], S ∈ [0, 100], L ∈ [0, 100]
  */
-export function RGB_to_HSL(rgb: number[]): number[] {
+export function RGB_to_HSL(rgb: number[]) {
     const [r, g, b] = rgb.map((v) => v / 255);
     const max = Math.max(r, g, b),
         min = Math.min(r, g, b);
@@ -298,11 +298,11 @@ export function RGB_to_HSL(rgb: number[]): number[] {
  * @param hwb - [h, w, b] where H ∈ [0, 360], W ∈ [0, 100], B ∈ [0, 100]
  * @returns [R, G, B] each in range 0–255
  */
-export function HWB_to_RGB([h, w, b]: number[]): number[] {
+export function HWB_to_RGB([h, w, b]: number[]) {
     w /= 100;
     b /= 100;
     if (w + b >= 1) {
-        const gray = w / (w + b);
+        const gray = (w / (w + b)) * 255;
         return [gray, gray, gray];
     }
     const rgb = HSL_to_RGB([h, 100, 50]).map((c) => c / 255);
@@ -315,7 +315,7 @@ export function HWB_to_RGB([h, w, b]: number[]): number[] {
  * @param rgb - [R, G, B] each in range 0–255
  * @returns [H, W, B] where H ∈ [0, 360], W ∈ [0, 100], B ∈ [0, 100]
  */
-export function RGB_to_HWB(rgb: number[]): number[] {
+export function RGB_to_HWB(rgb: number[]) {
     const [r, g, b] = rgb.map((v) => v / 255);
     const max = Math.max(r, g, b),
         min = Math.min(r, g, b);

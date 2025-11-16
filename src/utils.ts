@@ -1,5 +1,5 @@
 import { Color } from "./Color.js";
-import { config } from "./config.js";
+import { config, systemColors } from "./config.js";
 import { colorBases, colorModels, colorFunctions, colorSpaces, colorTypes, namedColors } from "./converters.js";
 import { fitMethods } from "./math.js";
 import type {
@@ -18,6 +18,8 @@ import type {
     NamedColor,
     Plugin,
     Config,
+    OutputType,
+    SystemColor,
 } from "./types.js";
 
 /** Global cache for internal Color operations. */
@@ -108,6 +110,40 @@ export function use(...pluginFns: Plugin[]) {
     }
 }
 
+const getterRegistry = {
+    "color-types": () => Object.keys(colorTypes) as ColorType[],
+    "color-bases": () => Object.keys(colorBases) as ColorBase[],
+    "color-functions": () => Object.keys(colorFunctions) as ColorFunction[],
+    "color-models": () => Object.keys(colorModels) as ColorModel[],
+    "color-spaces": () => Object.keys(colorSpaces) as ColorSpace[],
+    "named-colors": () => Object.keys(namedColors) as NamedColor[],
+    "system-colors": () => Object.keys(systemColors) as SystemColor[],
+    "output-types": () => {
+        return Object.keys(colorTypes).filter((key) => {
+            const type = colorTypes[key as ColorType];
+            return (
+                typeof type["fromBridge" as keyof typeof type] === "function" &&
+                typeof type["format" as keyof typeof type] === "function"
+            );
+        }) as OutputType[];
+    },
+    plugins: () => Object.keys(plugins),
+    "fit-methods": () => ["none", "clip", ...Object.keys(fitMethods)] as FitMethod[],
+} as const;
+
+type Getter = keyof typeof getterRegistry;
+
+/**
+ * Retrieve a list of registered items of a specified type.
+ *
+ * @param type - The getter type, e.g. "color-types".
+ * @returns The array returned by the getter.
+ */
+export function get<T extends Getter>(type: T) {
+    const fn = getterRegistry[type];
+    return fn() as ReturnType<(typeof getterRegistry)[T]>;
+}
+
 const converterRegistry = {
     /* eslint-disable no-unused-vars */
     "color-type": { fn: registerColorType as (name: string, value: ColorConverter) => void },
@@ -121,13 +157,9 @@ const converterRegistry = {
 
 type ConverterType = keyof typeof converterRegistry;
 
-type ConverterValueMap = {
-    [K in ConverterType]: Parameters<(typeof converterRegistry)[K]["fn"]>[1];
-};
-
 type ConverterEntry<T extends ConverterType> = {
     name: string;
-    value: ConverterValueMap[T];
+    value: Parameters<(typeof converterRegistry)[T]["fn"]>[1];
 };
 
 /**

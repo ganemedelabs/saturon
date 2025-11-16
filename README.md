@@ -108,7 +108,7 @@ console.log(ictcp.to("rgb")); // → rgb(6 7 90)
 
 ## 📚 Documentation
 
-Full documentation is available at [saturon.vercel.app/docs](https://saturon.vercel.app/docs).
+Full documentation is available at [saturon.js.org](https://saturon.js.org).
 
 ## 📜 License
 
