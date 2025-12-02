@@ -6,8 +6,6 @@ We, as members, contributors, and leaders, commit to creating a community where 
 
 We pledge to act and interact in ways that support collaboration, constructive engagement, and the shared goals of the community, regardless of individual beliefs, backgrounds, or personal choices.
 
----
-
 ## Our Standards
 
 Examples of behavior that contributes to a positive environment for our community include:
@@ -26,25 +24,17 @@ Examples of unacceptable behavior include:
 - Publishing others’ private information, such as a physical or email address, without their explicit permission
 - Other conduct which could reasonably be considered inappropriate in a professional setting
 
----
-
 ## Enforcement Responsibilities
 
 Community leaders are responsible for clarifying and enforcing our standards of acceptable behavior. They will take appropriate and fair corrective action in response to any behavior that they deem inappropriate, threatening, offensive, or harmful.
-
----
 
 ## Scope
 
 This Code of Conduct applies within all community spaces and when an individual is officially representing the community in public spaces.
 
----
-
 ## Enforcement
 
 Instances of abusive, harassing, or otherwise unacceptable behavior may be reported to the community leaders responsible for enforcement at [ganemedelabs@gmail.com](mailto:ganemedelabs@gmail.com). All complaints will be reviewed and investigated promptly and fairly.
-
----
 
 ## Attribution
 

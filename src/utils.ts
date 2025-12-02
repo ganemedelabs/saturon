@@ -226,6 +226,7 @@ export function registerColorType(name: string, converter: ColorConverter) {
 
     types[n] = converter;
     cache.delete("graph");
+    cache.delete("paths");
 }
 
 /**
@@ -283,6 +284,7 @@ export function registerColorBase(name: string, converter: ColorConverter) {
     bases[n] = converter;
     types[n] = converter;
     cache.delete("graph");
+    cache.delete("paths");
 }
 
 /**
@@ -361,6 +363,7 @@ export function registerColorFunction(name: string, converter: ColorModelConvert
     functions[n] = colorConv;
     types[n] = colorConv;
     cache.delete("graph");
+    cache.delete("paths");
 }
 
 /**
@@ -432,6 +435,7 @@ export function registerColorSpace(name: string, converter: ColorSpaceConverter)
     functions[n] = colorConv;
     types[n] = colorConv;
     cache.delete("graph");
+    cache.delete("paths");
 }
 
 /**

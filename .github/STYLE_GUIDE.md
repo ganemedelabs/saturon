@@ -61,5 +61,5 @@ Use the following npm scripts to manage code quality and formatting:
 
 ## Additional Resources
 
-- [ESLint Documentation](https://eslint.org/docs/user-guide/getting-started)
+- [ESLint Documentation](https://eslint.org/docs/latest/use)
 - [Prettier Documentation](https://prettier.io/docs/en/index.html)

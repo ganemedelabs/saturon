@@ -1,7 +1,7 @@
 # Saturon
 
-![npm](https://img.shields.io/npm/v/saturon)
-![npm](https://img.shields.io/npm/dw/saturon)
+![Version](https://img.shields.io/npm/v/saturon)
+![Downloads](https://img.shields.io/npm/dw/saturon)
 ![License](https://img.shields.io/npm/l/saturon)
 
 A runtime-extensible JavaScript library for parsing, converting, and manipulating colors with full CSS spec support.
@@ -29,6 +29,8 @@ A runtime-extensible JavaScript library for parsing, converting, and manipulatin
 
 ```bash
 npm install saturon
+# or
+yarn add saturon
 ```
 
 ## 🚀 Usage
