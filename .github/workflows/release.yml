@@ -3,8 +3,8 @@
 # Description:
 #   This workflow automatically creates a GitHub release when changes
 #   are pushed to the main branch, but only if the version in
-#   package.json has changed compared to the latest published version
-#   on npm.
+#   package.json is different from the version of the latest existing
+#   GitHub release.
 
 name: Create GitHub Release
 
@@ -31,10 +31,9 @@ jobs:
             - name: Check version change
               id: check
               run: |
-                  PACKAGE_NAME=$(jq -r .name package.json)
                   CURRENT_VERSION=$(jq -r .version package.json)
-
-                  LATEST_VERSION=$(npm show "$PACKAGE_NAME" version 2>/dev/null || echo "0.0.0")
+                  LATEST_TAG=$(gh release list --limit 1 --json tagName -q '.[0].tagName' || echo "v0.0.0")
+                  LATEST_VERSION="${LATEST_TAG#v}"
 
                   if [ "$LATEST_VERSION" != "$CURRENT_VERSION" ]; then
                     echo "version_changed=true" >> $GITHUB_OUTPUT
