@@ -179,8 +179,8 @@ export type ComponentDefinition = {
     /** Position of the component in the color array */
     index: number;
 
-    /** The value type for the component, which can be a tuple of two numbers representing a range, or a string indicating a special type ("angle" or "percentage"). */
-    value: number[] | "angle" | "percentage";
+    /** The value type for the component, which can be a tuple of two numbers representing a range, or a string indicating a special type ("hue" or "percentage"). */
+    value: number[] | "hue" | "percentage";
 
     /** Precision for rounding the component value, or `null` to disable rounding. Defaults to 3 if left undefined. */
     precision?: number | null;
@@ -206,7 +206,7 @@ export type FitFunction = (coords: number[], model: ColorFunction) => number[];
 export type FitMethod = keyof typeof fitMethods | "clip" | "none";
 
 /** Represents options for retrieving the coordinates. */
-export type GetOptions = {
+export type ComponentOptions = {
     /** Method for fitting the color into the target gamut. Defaults to `config.defaults.fit`. */
     fit?: FitMethod;
 
@@ -214,8 +214,8 @@ export type GetOptions = {
     precision?: number | null;
 };
 
-/** Options for formatting color output. */
-export type FormattingOptions = GetOptions & {
+/** Options for formatting color components. */
+export type FormattingOptions = ComponentOptions & {
     /** Use legacy syntax (e.g., `"rgba(255, 0, 0, 0.5)"`). */
     legacy?: boolean;
 

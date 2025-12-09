@@ -3,6 +3,8 @@ import { colorModels } from "./converters.js";
 import { ColorModelConverter, ColorSpace, FitFunction } from "./types.js";
 import { multiplyMatrices, fit } from "./utils.js";
 
+export const EPSILON = 1e-5;
+
 /**
  * A collection of commonly used color space conversion matrices.
  *
@@ -279,17 +281,18 @@ export function RGB_to_HSL(rgb: number[]) {
     const max = Math.max(r, g, b),
         min = Math.min(r, g, b);
     const L = (max + min) / 2;
-    let H = 0,
-        S = 0;
     const d = max - min;
-
-    if (d !== 0) {
+    let H = NaN,
+        S = 0;
+    if (d > 0) {
         S = d / (1 - Math.abs(2 * L - 1));
         H = max === r ? (g - b) / d + (g < b ? 6 : 0) : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
-        H *= 60;
+        H = (H * 60) % 360;
     }
-
-    return [H % 360, S * 100, L * 100];
+    const S_out = S * 100,
+        L_out = L * 100;
+    const invalid = L_out <= EPSILON || 100 - L_out <= EPSILON || S_out <= EPSILON;
+    return [invalid ? NaN : H, S_out, L_out];
 }
 
 /**
@@ -319,15 +322,12 @@ export function RGB_to_HWB(rgb: number[]) {
     const [r, g, b] = rgb.map((v) => v / 255);
     const max = Math.max(r, g, b),
         min = Math.min(r, g, b);
-    let H = 0;
     const d = max - min;
-
-    if (d === 0) H = 0;
-    else {
+    let H = NaN;
+    if (d > EPSILON) {
         H = max === r ? (g - b) / d + (g < b ? 6 : 0) : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
         H = (H * 60) % 360;
     }
-
     return [H, min * 100, (1 - max) * 100];
 }
 
@@ -387,7 +387,7 @@ export function LAB_to_LCH([L, a, b]: number[]) {
     const C = Math.hypot(a, b);
     let H = (Math.atan2(b, a) * 180) / Math.PI;
     if (H < 0) H += 360;
-    return [L, C, H];
+    return [L, C, C <= EPSILON ? NaN : H];
 }
 
 /**
@@ -437,5 +437,5 @@ export function OKLAB_to_OKLCH([L, a, b]: number[]) {
     const C = Math.hypot(a, b);
     let H = (Math.atan2(b, a) * 180) / Math.PI;
     if (H < 0) H += 360;
-    return [L, C, H];
+    return [L, C, C <= EPSILON ? NaN : H];
 }

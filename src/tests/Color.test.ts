@@ -531,6 +531,36 @@ describe("Color", () => {
 
         expect(new Set(results.map((r) => JSON.stringify(r))).size).toBeGreaterThan(1);
     });
+
+    it("should correctly mix colors with missing components", () => {
+        const hs1 = Color.from("hsl(none 100% 50%)");
+        const hsl2 = Color.from("hsl(240deg none 50%)");
+        const mixedHsl = hs1.mix(hsl2);
+        expect(mixedHsl.toString()).toBe("hsl(240 100 50)");
+        expect(mixedHsl.equals("color-mix(in hsl, hsl(none 100% 50%), hsl(240deg none 50%))")).toBe(true);
+
+        const oklch1 = Color.from("oklch(78.3% 0.108 326.5)");
+        const oklch2 = Color.from("oklch(39.2% 0.4 none)");
+        const mixedOklch = oklch1.mix(oklch2);
+        expect(mixedOklch.toString()).toBe("oklch(0.5875 0.254 326.5)");
+        expect(mixedOklch.equals("color-mix(in oklch, oklch(78.3% 0.108 326.5), oklch(39.2% 0.4 none))")).toBe(true);
+
+        const withAlpha1 = Color.from("oklch(0.783 0.108 326.5 / 0.5)");
+        const withAlpha2 = Color.from("oklch(0.392 0.4 0 / none)");
+        const mixedWithAlpha = withAlpha1.mix(withAlpha2);
+
+        expect(mixedWithAlpha.toString()).toBe("oklch(0.5875 0.254 343.25 / 0.5)");
+        expect(
+            mixedWithAlpha.equals("color-mix(in oklch, oklch(0.783 0.108 326.5 / 0.5), oklch(0.392 0.4 0 / none))")
+        ).toBe(true);
+    });
+
+    it("should return Color instance with fitted compnents", () => {
+        const color = Color.from("color(display-p3 1.2 -0.3 0.5)");
+        const fitted = color.fit({ fit: "clip" });
+        expect(fitted.model).toBe("display-p3");
+        expect(fitted.coords).toEqual([1, 0, 0.5, 1]);
+    });
 });
 
 describe("Color registration system", () => {

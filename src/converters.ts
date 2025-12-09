@@ -33,6 +33,8 @@ import {
     extractBalancedExpression,
 } from "./utils.js";
 
+export const alphaDef = { index: 3, value: [0, 1], precision: 3 };
+
 /**
  * A collection of `<named-color>`s and their RGB values.
  *
@@ -356,7 +358,7 @@ export const colorModels = {
         supportsLegacy: true,
         alphaVariant: "hsla",
         components: {
-            h: { index: 0, value: "angle", precision: 0 },
+            h: { index: 0, value: "hue", precision: 0 },
             s: { index: 1, value: "percentage", precision: 0 },
             l: { index: 2, value: "percentage", precision: 0 },
         },
@@ -366,7 +368,7 @@ export const colorModels = {
     },
     hwb: {
         components: {
-            h: { index: 0, value: "angle", precision: 0 },
+            h: { index: 0, value: "hue", precision: 0 },
             w: { index: 1, value: "percentage", precision: 0 },
             b: { index: 2, value: "percentage", precision: 0 },
         },
@@ -390,7 +392,7 @@ export const colorModels = {
         components: {
             l: { index: 0, value: "percentage", precision: 5 },
             c: { index: 1, value: [0, 150], precision: 5 },
-            h: { index: 2, value: "angle", precision: 5 },
+            h: { index: 2, value: "hue", precision: 5 },
         },
         bridge: "lab",
         toBridge: LCH_to_LAB,
@@ -412,7 +414,7 @@ export const colorModels = {
         components: {
             l: { index: 0, value: [0, 1], precision: 5 },
             c: { index: 1, value: [0, 0.4], precision: 5 },
-            h: { index: 2, value: "angle", precision: 5 },
+            h: { index: 2, value: "hue", precision: 5 },
         },
         bridge: "oklab",
         toBridge: OKLCH_to_OKLAB,
@@ -447,13 +449,7 @@ export const colorBases = {
             const HEX = str.slice(1);
             if (![3, 4, 6, 8].includes(HEX.length)) throw new Error("Invalid hex color length.");
 
-            for (const ch of HEX) {
-                const code = ch.charCodeAt(0);
-                const isDigit = code >= 48 && code <= 57;
-                const isLower = code >= 97 && code <= 102;
-                const isUpper = code >= 65 && code <= 70;
-                if (!(isDigit || isLower || isUpper)) throw new Error("Invalid hex color character.");
-            }
+            for (const ch of HEX) if (!/^[0-9a-fA-F]$/.test(ch)) throw new Error("Invalid hex color character.");
 
             const expand = (c: string) => parseInt(c.length === 1 ? c + c : c, 16);
 
@@ -642,7 +638,7 @@ export const colorBases = {
                 if (!comps) {
                     throw new Error(`Unknown color model: ${model}.`);
                 }
-                const hasHue = Object.values(comps).some((c) => c.value === "angle");
+                const hasHue = Object.values(comps).some((c) => c.value === "hue");
                 if (!hasHue) {
                     throw new Error(`Hue interpolation not supported in ${model} space.`);
                 }
@@ -656,18 +652,17 @@ export const colorBases = {
             const { amount, alphaMultiplier = 1 } = getWeight2Prime(weight1, weight2);
 
             return color1
-                .with({ alpha: (a) => a * alphaMultiplier })
+                .with({ alpha: (a) => (isNaN(a) ? a : a * alphaMultiplier) }, false)
                 .in(model)
-                .mix(color2.with({ alpha: (a) => a * alphaMultiplier }), { amount, hue })
-                .in("rgb")
-                .toArray({ fit: "none", precision: null });
+                .mix(color2.with({ alpha: (a) => (isNaN(a) ? a : a * alphaMultiplier) }, false), { amount, hue })
+                .in("rgb").coords;
         },
     },
     transparent: {
         isValid: (str: string) => str === "transparent",
         bridge: "rgb",
         toBridge: (coords: number[]) => coords,
-        parse: (str: string) => [0, 0, 0, 0], // eslint-disable-line no-unused-vars
+        parse: (str: string) => [NaN, NaN, NaN, 0], // eslint-disable-line no-unused-vars
     },
 } satisfies Record<string, ColorConverter>;
 
@@ -701,7 +696,7 @@ export const colorTypes = {
         toBridge: (coords: number[]) => coords,
         parse: (str: string) => {
             const inner = str.slice(15, -1);
-            const [, luminance] = Color.from(inner).in("xyz-d65").toArray({ fit: "none", precision: null });
+            const [, luminance] = Color.from(inner).in("xyz-d65").coords;
             return luminance > 0.5 ? [0, 0, 0, 1] : [255, 255, 255, 1];
         },
     },
@@ -805,7 +800,7 @@ export const colorTypes = {
             if (idx < tokens.length && tokens[idx] === ",") {
                 idx++;
                 const fallbackStr = tokens.slice(idx).join(" ");
-                return Color.from(fallbackStr).in("rgb").toArray({ fit: "none", precision: null });
+                return Color.from(fallbackStr).in("rgb").coords;
             }
 
             const red = 1 - Math.min(1, c * (1 - k) + k);
@@ -890,7 +885,7 @@ export const colorTypes = {
             const [color1, color2] = parts;
 
             const { theme } = config;
-            return Color.from(theme === "light" ? color1 : color2).toArray({ fit: "none", precision: null });
+            return Color.from(theme === "light" ? color1 : color2).coords;
         },
     },
 } satisfies Record<string, ColorConverter>;

@@ -1,6 +1,14 @@
 import { Color } from "./Color.js";
 import { config, systemColors } from "./config.js";
-import { colorBases, colorModels, colorFunctions, colorSpaces, colorTypes, namedColors } from "./converters.js";
+import {
+    colorBases,
+    colorModels,
+    colorFunctions,
+    colorSpaces,
+    colorTypes,
+    namedColors,
+    alphaDef,
+} from "./converters.js";
 import { fitMethods } from "./math.js";
 import type {
     ColorBase,
@@ -20,6 +28,7 @@ import type {
     Config,
     OutputType,
     SystemColor,
+    Component,
 } from "./types.js";
 
 /** Global cache for internal Color operations. */
@@ -559,6 +568,21 @@ export function extractBalancedExpression(input: string, start: number) {
 }
 
 /**
+ * Normalizes a component value to a valid range based on the component definition.
+ *
+ * @param component - The numeric component value to normalize
+ * @param value - The component definition that specifies the valid range (either a [min, max] tuple, "hue" for [0, 360], or a default [0, 100] range)
+ * @returns The normalized component value, clamped to the valid range or 0/max/min for NaN/Infinity cases
+ */
+export function normalize(component: number, value: ComponentDefinition["value"]) {
+    const [min, max] = Array.isArray(value) ? value : value === "hue" ? [0, 360] : [0, 100];
+    if (Number.isNaN(component)) return 0;
+    if (component === Infinity) return max;
+    if (component === -Infinity) return min;
+    return typeof component === "number" ? component : 0;
+}
+
+/**
  * Fits or clips color coordinates to a specified model and gamut.
  *
  * @param coords - Color coordinates to fit/clip.
@@ -575,20 +599,19 @@ export function fit(
     const { method = config.defaults.fit, precision } = options;
     const { components } = colorModels[model] as ColorModelConverter;
 
-    const componentProps: ComponentDefinition[] = Object.values(components).reduce<ComponentDefinition[]>(
+    const defs: ComponentDefinition[] = Object.values(components).reduce<ComponentDefinition[]>(
         (arr, props) => ((arr[props.index] = props), arr),
         []
     );
 
     let clipped: number[];
 
-    if (method === "none") {
-        clipped = coords;
-    } else if (method === "clip") {
-        clipped = coords.slice(0, 3).map((v, i) => {
-            const prop = componentProps[i];
+    if (method === "none") clipped = coords;
+    else if (method === "clip") {
+        clipped = coords.map((v, i) => {
+            const prop = defs[i];
             if (!prop) throw new Error(`Missing component properties for index ${i}.`);
-            if (prop.value === "angle") return ((v % 360) + 360) % 360;
+            if (prop.value === "hue") return ((v % 360) + 360) % 360;
 
             const [min, max] = Array.isArray(prop.value) ? prop.value : [0, 100];
             return Math.min(max, Math.max(min, v));
@@ -601,10 +624,10 @@ export function fit(
         clipped = fn(coords, model);
     }
 
-    return clipped.slice(0, 3).map((v, i) => {
+    return clipped.map((v, i) => {
         let p: number | null;
         if (typeof precision === "number" || precision === null) p = precision;
-        else if (typeof precision === "undefined") p = componentProps[i]?.precision ?? 3;
+        else if (typeof precision === "undefined") p = defs[i]?.precision ?? 3;
         else throw new TypeError(`Invalid precision value: ${precision}.`);
 
         return p === null ? v : Number(v.toFixed(p));
@@ -632,7 +655,7 @@ export function modelConverterToColorConverter(name: string, converter: ColorMod
 
     const evaluateComponent = (
         token: string,
-        value: number[] | "angle" | "percentage",
+        value: number[] | "hue" | "percentage",
         base: Record<string, number> = {},
         commaSeparated = false,
         relative = false
@@ -645,9 +668,9 @@ export function modelConverterToColorConverter(name: string, converter: ColorMod
             return (percent / 100) * (max - min) + min;
         };
 
-        const parseAngle = (token: string) => {
+        const parseHue = (token: string) => {
             const value = parseFloat(token);
-            if (isNaN(value)) throw new Error(`Invalid angle value: '${token}'.`);
+            if (isNaN(value)) throw new Error(`Invalid hue value: '${token}'.`);
             if (token.slice(-3) === "deg") return value;
             if (token.slice(-3) === "rad") return value * (180 / pi);
             if (token.slice(-4) === "grad") return value * 0.9;
@@ -713,8 +736,9 @@ export function modelConverterToColorConverter(name: string, converter: ColorMod
                 };
                 const expect = (v: string) => {
                     const t = cur();
-                    if (!t || t.value !== v)
+                    if (!t || t.value !== v) {
                         throw new Error(`Expected "${v}" but got "${t ? t.value : "end of input"}`);
+                    }
                     nxt();
                 };
 
@@ -787,13 +811,14 @@ export function modelConverterToColorConverter(name: string, converter: ColorMod
                 };
 
                 const ast = parseAdd();
-                if (pos < tokens.length)
+                if (pos < tokens.length) {
                     throw new Error(
                         `Extra tokens after expression: ${tokens
                             .slice(pos)
                             .map((t) => t.value)
                             .join(" ")}`
                     );
+                }
                 return ast;
             };
 
@@ -805,13 +830,14 @@ export function modelConverterToColorConverter(name: string, converter: ColorMod
                     case "var": {
                         const v = env[ast.name];
                         if (v === undefined) throw new Error(`Unknown variable: ${ast.name}`);
-                        if (typeof v === "function")
+                        if (typeof v === "function") {
                             throw new Error(`Expected variable but found function: ${ast.name}`);
+                        }
                         return v as number;
                     }
                     case "binary": {
-                        const L = evaluate(ast.left, env),
-                            R = evaluate(ast.right, env);
+                        const L = evaluate(ast.left, env);
+                        const R = evaluate(ast.right, env);
                         switch (ast.op) {
                             case "+":
                                 return L + R;
@@ -852,21 +878,23 @@ export function modelConverterToColorConverter(name: string, converter: ColorMod
             };
 
             let inner = token.slice(5, -1).trim();
-            if (inner === "infinity") return _max;
-            if (inner === "-infinity") return _min;
-            if (inner === "NaN") return 0;
+            if (inner === "infinity") return Infinity;
+            if (inner === "-infinity") return -Infinity;
+            if (inner === "NaN") return NaN;
 
             inner = inner.replace(/(\d+(\.\d+)?)%/g, (m) => {
-                if (relative === true)
-                    throw new Error("<angle> and <percentage> values are converted to <number> in relative syntax.");
+                if (relative === true) {
+                    throw new Error("<hue> and <percentage> values are converted to <number> in relative syntax.");
+                }
                 const r = parsePercent(m, _min, _max);
                 return r !== undefined ? String(r) : "0";
             });
 
             inner = inner.replace(/(\d+(\.\d+)?)(deg|rad|grad|turn)/g, (_, num, __, unit) => {
-                if (relative === true)
-                    throw new Error("<angle> and <percentage> values are converted to <number> in relative syntax.");
-                return String(parseAngle(`${parseFloat(num)}${unit}`));
+                if (relative === true) {
+                    throw new Error("<hue> and <percentage> values are converted to <number> in relative syntax.");
+                }
+                return String(parseHue(`${parseFloat(num)}${unit}`));
             });
 
             const caclEnv = {
@@ -909,33 +937,17 @@ export function modelConverterToColorConverter(name: string, converter: ColorMod
             }
         };
 
-        const evaluateAngle = () => {
-            if (/^-?(?:\d+|\d*\.\d+)(?:deg|rad|grad|turn)$/.test(token)) {
-                return parseAngle(token);
-            }
+        const evaluateHue = () => {
+            if (/^-?(?:\d+|\d*\.\d+)(?:deg|rad|grad|turn)$/.test(token)) return parseHue(token);
 
-            if (/^-?(?:\d+|\d*\.\d+)$/.test(token)) {
-                return parseFloat(token);
-            }
+            if (/^-?(?:\d+|\d*\.\d+)$/.test(token)) return parseFloat(token);
 
             const [min, max] = [0, 360];
 
-            if (token[token.length - 1] === "%") {
-                if (commaSeparated && supportsLegacy === true) {
-                    throw new Error("The legacy color syntax does not allow percentages for <angle> components.");
-                }
-                if (relative === true) {
-                    throw new Error("The relative color syntax doesn't allow percentages for <angle> components.");
-                }
-                return parsePercent(token, min, max);
-            }
-
-            if (token.slice(0, 5) === "calc(") {
-                return parseCalc(token, min, max);
-            }
+            if (token.slice(0, 5) === "calc(") return parseCalc(token, min, max);
 
             throw new Error(
-                `Invalid angle value: '${token}'. Must be a number, a number with a unit (deg, rad, grad, turn), or a percentage.`
+                `Invalid hue value: '${token}'. Must be a number, or a number with a unit (deg, rad, grad, turn).`
             );
         };
 
@@ -949,42 +961,32 @@ export function modelConverterToColorConverter(name: string, converter: ColorMod
 
             const [min, max] = [0, 100];
 
-            if (token[token.length - 1] === "%") {
-                return parsePercent(token, min, max);
-            }
+            if (token[token.length - 1] === "%") return parsePercent(token, min, max);
 
-            if (token.slice(0, 5) === "calc(") {
-                return parseCalc(token, min, max);
-            }
+            if (token.slice(0, 5) === "calc(") return parseCalc(token, min, max);
 
             throw new Error(`Invalid percentage value: '${token}'. Must be a percentage or a number.`);
         };
 
         const evaluateNumber = () => {
-            if (/^-?(?:\d+|\d*\.\d+)$/.test(token)) {
-                return parseFloat(token);
-            }
+            if (/^-?(?:\d+|\d*\.\d+)$/.test(token)) return parseFloat(token);
 
             const [min, max] = value as number[];
 
-            if (token[token.length - 1] === "%") {
-                return parsePercent(token, min, max);
-            }
+            if (token[token.length - 1] === "%") return parsePercent(token, min, max);
 
-            if (token.slice(0, 5) === "calc(") {
-                return parseCalc(token, min, max);
-            }
+            if (token.slice(0, 5) === "calc(") return parseCalc(token, min, max);
 
             throw new Error(
                 `Invalid number value: '${token}'. Must be a number${relative === false ? " or a percentage" : ""}.`
             );
         };
 
-        if (token === "none") return 0;
+        if (token === "none") return NaN;
 
         if (token in base) return base[token];
 
-        if (value === "angle") return evaluateAngle();
+        if (value === "hue") return evaluateHue();
 
         if (value === "percentage") return evaluatePercent();
 
@@ -995,22 +997,18 @@ export function modelConverterToColorConverter(name: string, converter: ColorMod
 
     const parseAST = (ast: AST) => {
         const { fn, space, fromOrigin, c1, c2, c3, alpha, commaSeparated } = ast;
-        const { components, supportsLegacy } = converter;
-        components.alpha = { index: 3, value: [0, 1], precision: 3 };
 
         if (commaSeparated && supportsLegacy !== true) {
             throw new Error(`<${fn}()> does not support comma-separated syntax.`);
         }
 
-        const sorted = Object.entries(components).sort((a, b) => a[1].index - b[1].index);
+        const sorted = Object.entries(defs).sort((a, b) => a[1].index - b[1].index);
 
         if (fromOrigin) {
             let colorSpace;
-            if (fn === "color") {
-                colorSpace = space;
-            } else if (fn in colorModels) {
-                colorSpace = fn;
-            } else {
+            if (fn === "color") colorSpace = space;
+            else if (fn in colorModels) colorSpace = fn;
+            else {
                 for (const model in colorModels) {
                     if ((colorModels[model as ColorModel] as ColorModelConverter).alphaVariant === fn) {
                         colorSpace = model;
@@ -1019,17 +1017,14 @@ export function modelConverterToColorConverter(name: string, converter: ColorMod
                 }
             }
 
-            const originComponents = Color.from(fromOrigin)
+            const base = Color.from(fromOrigin)
                 .in(colorSpace as ColorModel)
                 .toObject({ fit: "none", precision: null });
 
-            const evaluatedComponents = [c1, c2, c3, alpha].map((token, i) => {
+            return [c1, c2, c3, alpha].map((token, i) => {
                 const [, meta] = sorted[i];
-
-                return evaluateComponent(token, meta.value, originComponents, commaSeparated, true);
+                return evaluateComponent(token, meta.value, base, commaSeparated, true);
             });
-
-            return evaluatedComponents.slice(0, 4);
         } else {
             const result: number[] = [];
             const percentFlags: boolean[] = [];
@@ -1045,7 +1040,7 @@ export function modelConverterToColorConverter(name: string, converter: ColorMod
 
                 if (
                     meta.index !== 3 &&
-                    meta.value !== "angle" &&
+                    meta.value !== "hue" &&
                     meta.value !== "percentage" &&
                     token.slice(0, 5) !== "calc("
                 ) {
@@ -1066,7 +1061,7 @@ export function modelConverterToColorConverter(name: string, converter: ColorMod
                 }
             }
 
-            return result.slice(0, 4);
+            return result;
         }
     };
 
@@ -1224,9 +1219,8 @@ export function modelConverterToColorConverter(name: string, converter: ColorMod
                 const { expression, end } = extractBalancedExpression(innerStr, colorStart);
                 tokens.push(expression);
                 i = end;
-            } else {
-                tokens.push(colorStr);
-            }
+            } else tokens.push(colorStr);
+
             while (i < innerStr.length && innerStr[i] === " ") i++;
         }
 
@@ -1248,9 +1242,8 @@ export function modelConverterToColorConverter(name: string, converter: ColorMod
                 tokens.push("/");
                 i++;
                 if (innerStr[i] === " ") i++;
-            } else if (char === " ") {
-                i++;
-            } else if (/[a-zA-Z#]/.test(char)) {
+            } else if (char === " ") i++;
+            else if (/[a-zA-Z#]/.test(char)) {
                 const identStart = i;
                 let ident = "";
                 while (i < innerStr.length && /[a-zA-Z0-9-%#]/.test(innerStr[i])) {
@@ -1261,9 +1254,7 @@ export function modelConverterToColorConverter(name: string, converter: ColorMod
                     const { expression, end } = extractBalancedExpression(innerStr, identStart);
                     tokens.push(expression);
                     i = end;
-                } else {
-                    tokens.push(ident);
-                }
+                } else tokens.push(ident);
             } else if (/[\d.-]/.test(char)) {
                 let num = "";
                 while (i < innerStr.length && /[\d.eE+-]/.test(innerStr[i])) {
@@ -1281,12 +1272,8 @@ export function modelConverterToColorConverter(name: string, converter: ColorMod
                         i++;
                     }
                     tokens.push(num + unit);
-                } else {
-                    tokens.push(num);
-                }
-            } else {
-                throw new Error(`Unexpected character: ${char}`);
-            }
+                } else tokens.push(num);
+            } else throw new Error(`Unexpected character: ${char}`);
         }
 
         return tokens;
@@ -1294,30 +1281,29 @@ export function modelConverterToColorConverter(name: string, converter: ColorMod
 
     const validateRelativeColorSpace = (str: string, name: string) => {
         const prefix = "color(from ";
-        if (str.slice(0, 11) !== prefix || str[str.length - 1] !== ")") {
-            return false;
-        }
+
+        if (str.slice(0, 11) !== prefix || str[str.length - 1] !== ")") return false;
 
         const innerStr = str.slice(prefix.length, -1).trim();
-
         const { expression, end } = extractBalancedExpression(innerStr, 0);
 
-        if (!expression) {
-            return false;
-        }
+        if (!expression) return false;
 
         const rest = innerStr.slice(end).trim();
-
         const parts = rest.split(/\s+/);
-        if (parts.length < 1) {
-            return false;
-        }
+
+        if (parts.length < 1) return false;
 
         const colorSpace = parts[0];
         return colorSpace === name;
     };
 
     const { components, bridge, fromBridge, toBridge, alphaVariant, supportsLegacy } = converter;
+
+    const defs = {
+        ...components,
+        alpha: alphaDef,
+    } as Record<Component<ColorModel> | "alpha", ComponentDefinition & { index: number }>;
 
     const {
         PI: pi,
@@ -1373,8 +1359,8 @@ export function modelConverterToColorConverter(name: string, converter: ColorMod
         parse: (str: string) => {
             const tokens = tokenize(str);
             const ast = getAST(tokens);
-            const components = parseAST(ast);
-            return [...components.slice(0, 3), components[3] ?? 1];
+            const coords = parseAST(ast);
+            return [...coords.slice(0, 3), coords[3] ?? 1];
         },
 
         fromBridge: (coords: number[]) => [...fromBridge(coords), coords[3] ?? 1],
@@ -1382,29 +1368,28 @@ export function modelConverterToColorConverter(name: string, converter: ColorMod
         format: ([c1, c2, c3, a = 1]: number[], options: FormattingOptions = {}) => {
             const { legacy = false, fit: fitMethod = config.defaults.fit, precision, units = false } = options;
 
-            const clipped = fit([c1, c2, c3], name as ColorModel, { method: fitMethod, precision });
-            const alpha = Number(min(max(a, 0), 1).toFixed(3)).toString();
+            const fitted = fit([c1, c2, c3], name as ColorModel, { method: fitMethod, precision });
 
-            const formatted = clipped.map((v, index) => {
-                if ((units || legacy) && components) {
-                    const def = Object.values(components).find((comp) => comp.index === index);
-                    if (def?.value === "percentage") return `${v}%`;
-                    if (def?.value === "angle" && units) return `${v}deg`;
+            const formatted = [...fitted, a].map((c, index) => {
+                const norm = normalize(c, Object.values(defs)[index].value);
+                if ((units || legacy) && defs) {
+                    const def = Object.values(defs).find((comp) => comp.index === index);
+                    if (def?.value === "percentage") return `${norm}%`;
+                    if (def?.value === "hue" && units) return `${norm}deg`;
                 }
-                return v.toString();
+                return norm.toString();
             });
 
-            if (name in colorSpaces) {
-                return `color(${name} ${formatted.join(" ")}${a !== 1 ? ` / ${alpha}` : ""})`;
-            }
+            const f = formatted.slice(0, 3);
+            const alpha = formatted[3];
+
+            if (name in colorSpaces) return `color(${name} ${f.join(" ")}${a !== 1 ? ` / ${alpha}` : ""})`;
 
             if (legacy && supportsLegacy) {
-                return a === 1
-                    ? `${name}(${formatted.join(", ")})`
-                    : `${alphaVariant || name}(${formatted.join(", ")}, ${alpha})`;
+                return a === 1 ? `${name}(${f.join(", ")})` : `${alphaVariant || name}(${f.join(", ")}, ${alpha})`;
             }
 
-            return `${name}(${formatted.join(" ")}${a !== 1 ? ` / ${alpha}` : ""})`;
+            return `${name}(${f.join(" ")}${a !== 1 ? ` / ${alpha}` : ""})`;
         },
     };
 }
