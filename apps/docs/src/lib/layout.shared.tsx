@@ -22,7 +22,7 @@ export function baseOptions(): BaseLayoutProps {
                 icon: <Heart />,
             },
             {
-                text: "NPM",
+                text: "npm",
                 external: true,
                 url: "https://www.npmjs.com/package/saturon",
                 icon: <Package />,

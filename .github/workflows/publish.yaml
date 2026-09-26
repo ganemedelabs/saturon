@@ -15,7 +15,11 @@
 #    - Owner: ganemedelabs
 #    - Repository: saturon
 #    - Workflow filename: publish.yaml
-# 5. Save. Trusted Publishing uses OIDC to mint temporary tokens automatically.
+# 5. Under "Allowed actions", check "Allow npm publish" (this workflow does a
+#    direct publish, not staged publishing).
+# 6. Save. Trusted Publishing uses OIDC to mint temporary tokens automatically.
+#    Requires npm CLI >= 11.5.1 and Node >= 22.14.0 - this workflow uses Node 22
+#    and force-updates npm to latest to guarantee that.
 #
 # OPTION B: NPM Secret Token (Legacy Method)
 # 1. Generate an NPM Access Token at https://www.npmjs.com/settings/<your-user>/tokens
@@ -49,9 +53,14 @@ jobs:
             - name: Setup Node.js
               uses: actions/setup-node@v4
               with:
-                  node-version: "20"
+                  node-version: "22" # Trusted Publishing requires Node >= 22.14.0
                   registry-url: "https://registry.npmjs.org"
                   cache: "pnpm"
+
+            - name: Ensure npm is new enough for Trusted Publishing
+              run: |
+                  npm install -g npm@latest
+                  npm --version
 
             - name: Install dependencies
               run: pnpm install
