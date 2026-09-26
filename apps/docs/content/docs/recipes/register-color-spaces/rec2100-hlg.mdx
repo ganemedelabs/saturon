@@ -1,0 +1,55 @@
+---
+title: Rec. 2100 HLG
+description: A recipe to register the Rec. 2100 HLG color space in Saturon.
+---
+
+## Implementation
+
+```ts title="src/index.ts"
+import { Color } from "saturon";
+import { MATRICES } from "saturon/converters";
+
+/**
+ * @see {@link https://www.w3.org/TR/css-color-hdr-1/|CSS Color HDR Module Level 1}
+ */
+Color.register("color-spaces", [
+    {
+        name: "rec2100-hlg",
+        value: {
+            components: ["r", "g", "b"],
+            bridge: "xyz-d65",
+            toLinear: (c: number) => {
+                const a = 0.17883277;
+                const b = 1 - 4 * a;
+                const c1 = 0.5 - a * Math.log(4 * a);
+                if (c <= 0.5) return c ** 2 / 3;
+                return (Math.exp((c - c1) / a) + b) / 12;
+            },
+            fromLinear: (E: number) => {
+                const a = 0.17883277;
+                const b = 1 - 4 * a;
+                const c1 = 0.5 - a * Math.log(4 * a);
+                const sign = E < 0 ? -1 : 1;
+                const absE = Math.abs(E);
+                if (absE <= 1 / 12) return sign * Math.sqrt(3 * absE);
+                return sign * (a * Math.log(12 * absE - b) + c1);
+            },
+            toBridgeMatrix: MATRICES.REC2020_to_XYZD65,
+            fromBridgeMatrix: MATRICES.XYZD65_to_REC2020,
+        },
+    },
+]);
+```
+
+## Usage
+
+```ts title="src/index.ts"
+import { Color } from "saturon";
+
+const valid = Color.isValid("color(rec2100-hlg 1 0 0)");
+console.log(valid); // true
+
+const color = new Color("rec2100-hlg", [1, 0, 0]);
+const inGamut = color.inGamut("rec2100-hlg");
+console.log(inGamut); // true
+```

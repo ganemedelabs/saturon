@@ -1,0 +1,130 @@
+---
+title: Extensibility & Dynamic Registry
+description: Explore how Saturon's decoupled registry allows you to dynamically inject and unregister custom color spaces, syntaxes, formatters, and algorithms at runtime.
+---
+
+A major challenge in modern color science libraries is future-proofing. As the W3C introduces new CSS color spaces and syntax rules, hardcoded parsers and conversion graphs become rapidly obsolete.
+
+Saturon solves this by treating the engine as a dynamic, bidirectional ecosystem. Built-in color models, syntax rules, and formatters use the exact same underlying architecture as third-party plugins. Because of this, anything registered operates seamlessly as a native core feature—and can be dynamically torn down when no longer needed without leaving stale references or leaking memory.
+
+Here is an architectural breakdown of how Saturon's extensibility engine processes, integrates, and unregisters custom components.
+
+## The Public API
+
+Developers interact with the extensibility architecture primarily through two unified entry points: `register()` and `unregister()`. Both functions operate on batches to optimize grammar compilation and cache invalidation cycles.
+
+```ts
+import { register, unregister } from "saturon/registry";
+
+// 1. Batch Registering Custom Logic
+register("fit-method", [
+    {
+        name: "custom-clipping",
+        value: (colorData) => {
+            /* custom mapping logic */
+            return colorData.coords;
+        },
+    },
+]);
+
+// 2. Unregistering by Category and Target Name
+unregister("fit-method", ["custom-clipping"]);
+```
+
+These entry points act as unified dispatchers. They route the incoming category (`RegistererType`) to its corresponding handler in `registerers` or `unregisterers` before executing engine-wide cleanup tasks.
+
+---
+
+## 1. Symmetric Handlers (`registerers` & `unregisterers`)
+
+Under the hood, the architecture avoids monolithic initialization and cleanup logic by dividing responsibilities into two symmetric dictionary modules: `registerers` and `unregisterers`.
+
+The architecture supports seven distinct registration categories:
+
+| Category         | Purpose                                                      | Mutated Engine State                                  |
+| ---------------- | ------------------------------------------------------------ | ----------------------------------------------------- |
+| `color-function` | Injects custom mathematical color functions/models.          | `colorModels`, `formatters`, `parsers`, `grammarMap`  |
+| `color-space`    | Registers matrix-based color spaces using bridge transforms. | `colorSpaces`, `colorModels`, `parsers`, `grammarMap` |
+| `parser`         | Injects custom CSS string evaluation logic or grammar nodes. | `parsers`, `grammarMap`, `validators`                 |
+| `formatter`      | Appends custom string serialization outputs.                 | `formatters`                                          |
+| `shortcut`       | Defines quick-matching parser overrides.                     | `shortcuts`, `grammarMap`                             |
+| `fit-method`     | Injects custom gamut mapping algorithms.                     | `fitMethods`                                          |
+| `named-color`    | Adds hardcoded RGB color lookup tokens.                      | `namedColors`                                         |
+
+When `unregister()` is invoked, the respective `unregisterers` handler deletes the target key directly from the internal state lookup table (e.g., removing a color model from `colorModels` or a formatter from `formatters`), restoring the engine to its pre-plugin state.
+
+---
+
+## 2. Dynamic Grammar Mutation & Teardown
+
+The most powerful feature of the registry is how it dynamically mutates and cleans up the parser's Abstract Syntax Tree (AST) grammar (`grammarMap`) at runtime.
+
+[![Saturon Extensibility Architecture Diagram](/images/extensibility.png)](/images/extensibility.png)
+
+### Auto-Generating Syntax Rules
+
+When a custom `"color-function"` or `"color-space"` is registered:
+
+1. Saturon inspects its component layout (e.g., checking for polar components like `hue` vs rectangular coordinates).
+2. It generates complete AST parsing expressions for standard, legacy, and CSS Level 5 Relative Color syntax (`from <color>`).
+3. It appends the rule identifier to the internal tracker (`registry.customSpaces`, `registry.polarFunctions`, etc.).
+4. It re-compiles the master non-terminal AST grammar rules (`<custom-color-space>`, `<custom-polar-space>`, or `<custom-rectangular-space>`) by joining active registry rules into a choice expression (`ruleA | ruleB`).
+
+### Recompiling Grammar on Unregister
+
+When a custom space or rule is removed via `unregister()`:
+
+1. The target AST parsing expressions are deleted directly from `grammarMap` and `parsers`.
+2. The item is removed from the `registry.customSpaces` set.
+3. The master grammar choice node (e.g., `<custom-color-space>`) is immediately re-evaluated and re-compiled using the updated set values.
+
+If no custom spaces remain, the master choice rule safely evaluates to an empty set, ensuring the CSS parser ignores unregistered syntax without crashing or suffering performance degradation.
+
+### The `appendTo` Extension Pattern
+
+When custom `"parser"` rules or `"shortcut"` overrides use the `appendTo` property, the engine creates a non-destructive dependency chain:
+
+1. The original target rule (e.g., `<color>`) is duplicated into a protected `<rule-core-base>` node.
+2. The primary rule is overridden with a dynamic choice node: `[ <rule-core-base> | <custom-extension> ]`.
+3. The original parsers cascade AST node evaluation through the modified tree structure.
+
+---
+
+## 3. Cache Invalidation & Graph Cleanup
+
+Saturon relies heavily on a dynamically calculated graph architecture to compute shortest paths (BFS) between color models and cache intermediate conversion matrices.
+
+Introducing or removing nodes while keeping stale graph caches can cause fatal routing errors or invalid transformations:
+
+- Registering a model creates new potential graph pathways that must be discovered.
+- Unregistering a model removes a node from the graph. If cached BFS routes still attempt to traverse through this deleted node, runtime conversion calls will crash.
+
+To prevent orphan references, both `register()` and `unregister()` automatically invoke `cache.clear()` upon execution:
+
+```ts
+// Excerpt from registry lifecycle execution
+export function unregister<T RegistererType extends>(type: T, names: Array<...>): void {
+    const fn = unregisterers[type];
+
+    for (const name of names) fn(name);
+
+    // Flush graph adjacency matrices, BFS route caches, and conversion memoizations
+    if (typeof cache !== "undefined" && typeof cache.clear === "function") {
+        cache.clear();
+    }
+}
+```
+
+Flushing the cache guarantees that the very next color operation recalculates clean adjacency matrices using only active, validated models.
+
+---
+
+## 4. Deep Engine Validation
+
+To maintain stability across registration and unregistration lifecycles, registry handlers enforce strict validation checkpoints before committing state changes:
+
+- **Type Safety Checks**: Confirms matrices (`toBridgeMatrix`, `fromBridgeMatrix`) are strictly formatted as 2D numeric arrays.
+- **Bridge Model Existence**: Ensures the declared `bridge` property references an actual, existing space in `colorModels` (preventing disconnected sub-graphs).
+- **Duplicate Prevention**: Prevents overwriting existing named colors, formatters, or fit methods without explicit developer intervention.
+
+Once validated, registered components instantly become accessible across all architectural layers. Upon calling `unregister()`, all associated parsers, grammar rules, formatters, and graph nodes are cleanly excised—leaving zero residual footprint in the engine.

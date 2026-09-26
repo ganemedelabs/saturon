@@ -1,0 +1,159 @@
+---
+title: Accessibility & Color Difference Checks
+description: Ensure your colors are readable and accessible using the static contrast() and deltaE*() methods to measure legibility and perceptual differences.
+---
+
+Saturon provides two complementary categories of tools for evaluating how colors relate to each other: Contrast ratios for accessibility compliance, and Delta E (ΔE) formulas for measuring perceptual color differences.
+
+| Tool Category      | Purpose                           | Best Used For                                                              |
+| :----------------- | :-------------------------------- | :------------------------------------------------------------------------- |
+| `Color.contrast()` | WCAG 2.1 contrast ratio (1 to 21) | Text legibility, UI element visibility (AA/AAA compliance).                |
+| `Color.deltaE*()`  | Perceptual distance (ΔE)          | Design system consistency, generating palettes, finding visual duplicates. |
+
+---
+
+## WCAG Contrast Ratio [#contrast]
+
+The static `Color.contrast()` method computes the WCAG 2.1 contrast ratio between two `Color` instances. It calculates the relative luminance of both colors in the `xyz-d65` color space and returns a value between `1` (no contrast) and `21` (maximum contrast, e.g., black and white).
+
+### Signature
+
+```ts
+static contrast(colorA: Color, colorB: Color): number
+```
+
+### Thresholds to Know
+
+- **4.5 : 1** — Minimum for normal text (WCAG AA).
+- **3.0 : 1** — Minimum for large text and UI components (icons, borders).
+- **7.0 : 1** — Enhanced contrast for normal text (WCAG AAA).
+
+### Example: Validating Text Accessibility
+
+```ts
+import { Color } from "saturon";
+
+const bg = Color.from("#1a1a1a"); // Dark background
+const text = Color.from("#e0e0e0"); // Light gray text
+const primary = Color.from("#0088cc"); // Blue accent
+
+// Text on background
+const textRatio = Color.contrast(text, bg);
+console.log(textRatio); // ~13.2 -> PASS (AAA)
+
+// Accent button on background
+const buttonRatio = Color.contrast(primary, bg);
+console.log(buttonRatio); // ~4.5 -> PASS (AA)
+```
+
+---
+
+## Perceptual Color Difference (ΔE) [#delta-e]
+
+Delta E (ΔE) measures how differently the human eye perceives two colors. A ΔE of ~1.0 represents a "Just Noticeable Difference" (JND). Saturon offers four static methods to calculate this, depending on your accuracy and performance needs.
+
+### Signature
+
+```ts
+static deltaEOK(colorA: Color, colorB: Color): number
+static deltaE2000(colorA: Color, colorB: Color): number
+static deltaE94(colorA: Color, colorB: Color): number
+static deltaE76(colorA: Color, colorB: Color): number
+```
+
+### Which formula should I use?
+
+| Method         | Space  | Characteristics                                                  | Recommended For                                              |
+| -------------- | ------ | ---------------------------------------------------------------- | ------------------------------------------------------------ |
+| `deltaEOK()`   | OKLab  | Fast, highly uniform, scaled by 100 so ΔE≈2 is a JND.            | Web & UI Design. The modern standard for digital interfaces. |
+| `deltaE2000()` | CIELAB | The most accurate, computationally heavy standard.               | Print & Photography. Color-critical workflows.               |
+| `deltaE94()`   | CIELAB | Medium speed, improves on 76.                                    | Legacy systems needing better accuracy than 76.              |
+| `deltaE76()`   | CIELAB | Fastest, but perceptually flawed (overvalues blue/green shifts). | Basic algorithms where speed is prioritized over accuracy.   |
+
+### Interpreting ΔE Values
+
+| ΔE Score | Human Perception                                          |
+| -------- | --------------------------------------------------------- |
+| ≤ 1      | Identical (Imperceptible difference)                      |
+| 1 - 2    | Barely perceptible (Usually only by experts side-by-side) |
+| 2 - 10   | Noticeable difference at a glance                         |
+| ≥ 10     | Completely distinct colors                                |
+
+### Example: Measuring Visual Similarity
+
+```ts
+import { Color } from "saturon";
+
+const brandColor = Color.from("#ff5733");
+const closeVariant = Color.from("#ff6b47");
+
+// Measure using the fast, modern OKLab formula
+const diff = Color.deltaEOK(brandColor, closeVariant);
+console.log(diff); // e.g., 3.4 -> Barely noticeable difference
+
+// Measure using the strict CIE 2000 standard
+const criticalDiff = Color.deltaE2000(brandColor, closeVariant);
+console.log(criticalDiff);
+```
+
+---
+
+## Practical Examples [#use-cases]
+
+Because these methods are static, they are highly optimized for use in utility functions and array iterations.
+
+### 1. Auto-Selecting Readable Text Color
+
+You can dynamically pick the best text color (light or dark) based on a dynamic background.
+
+```ts
+function getAccessibleText(bgColor: Color): Color {
+    const lightText = Color.from("#ffffff");
+    const darkText = Color.from("#000000");
+
+    const lightRatio = Color.contrast(lightText, bgColor);
+    const darkRatio = Color.contrast(darkText, bgColor);
+
+    // Return the color that yields the higher contrast ratio
+    return lightRatio > darkRatio ? lightText : darkText;
+}
+
+const warningBg = Color.from("#f39c12");
+const safeText = getAccessibleText(warningBg);
+
+console.log(safeText.to("hex-color")); // #000000 (Dark text on orange)
+```
+
+### 2. Detecting Redundant Colors in a Theme
+
+When generating a palette, you can use `deltaEOK` to ensure you aren't including colors that look identical to the user.
+
+```ts
+const palette = ["#ff5733", "#ff6b47", "#ff8040", "#33b5e5"].map(Color.from);
+
+for (let i = 0; i < palette.length; i++) {
+    for (let j = i + 1; j < palette.length; j++) {
+        const de = Color.deltaEOK(palette[i], palette[j]);
+
+        if (de < 4) {
+            // Threshold for "too similar"
+            console.warn(`Colors at index ${i} and ${j} are too similar (ΔE = ${de.toFixed(1)})`);
+        }
+    }
+}
+```
+
+### 3. Enforcing Brand Safety
+
+Ensure dynamically generated hover states don't stray too far from the original brand identity.
+
+```ts
+function isBrandSafe(base: Color, variant: Color, maxTolerance = 3): boolean {
+    return Color.deltaEOK(base, variant) <= maxTolerance;
+}
+
+const primary = Color.from("#0066cc");
+const hover = Color.from("#0070cc"); // Slightly lighter
+
+console.log(isBrandSafe(primary, hover)); // true (Keeps brand integrity)
+```

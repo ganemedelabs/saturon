@@ -1,0 +1,61 @@
+---
+title: saturon/contrast
+description: Calculate the WCAG 2.1 relative luminance contrast ratio between two colors.
+---
+
+The `saturon/contrast` subpath exposes the standalone `contrast()` function, which computes the WCAG 2.1 relative luminance contrast ratio between any two colors.
+
+## `contrast()` [#contrast]
+
+Calculates the contrast ratio between two `ColorData` objects by converting both into the XYZ-D65 color space to extract their relative luminance ($Y$ component) and applying the WCAG 2.1 contrast formula.
+
+```ts
+import { contrast } from "saturon/contrast";
+
+const white = { model: "rgb", coords: [255, 255, 255] };
+const black = { model: "rgb", coords: [0, 0, 0] };
+
+const ratio = contrast(white, black);
+console.log(ratio); // 21
+```
+
+## Signature
+
+```ts
+function contrast(color1: ColorData, color2: ColorData): number;
+```
+
+### Parameters
+
+| Parameter | Type        | Description                                            |
+| --------- | ----------- | ------------------------------------------------------ |
+| `color1`  | `ColorData` | The first raw `ColorData` object to evaluate.          |
+| `color2`  | `ColorData` | The second raw `ColorData` object to evaluate against. |
+
+### Returns
+
+A `number` ranging from `1` (identical relative luminance) to `21` (maximum contrast, e.g., pure black vs. pure white).
+
+## Behavior
+
+1. Converts both `color1` and `color2` to the `xyz-d65` color space using `convert()`.
+2. Extracts the relative luminance coordinate ($Y$, the second component in the XYZ array) for each color via `toArray()`.
+3. Determines $L_1$ (maximum luminance) and $L_2$ (minimum luminance) and evaluates the standard ratio formula:
+
+$$\text{Contrast} = \frac{L_1 + 0.05}{L_2 + 0.05}$$
+
+## Usage Example
+
+```ts
+import { contrast } from "saturon/contrast";
+
+const text = { model: "rgb", coords: [50, 50, 50, 1] };
+const background = { model: "rgb", coords: [240, 240, 240, 1] };
+
+const ratio = contrast(text, background);
+
+// Check WCAG AA compliance for normal text (minimum 4.5:1)
+const isAACompliant = ratio >= 4.5;
+console.log(`Contrast Ratio: ${ratio.toFixed(2)}:1`);
+console.log(`Passes WCAG AA: ${isAACompliant}`);
+```

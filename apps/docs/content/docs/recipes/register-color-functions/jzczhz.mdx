@@ -1,0 +1,59 @@
+---
+title: JzCzHz
+description: A recipe to register the JzCzHz color function in Saturon.
+---
+
+## Implementation
+
+```ts title="src/index.ts"
+import { Color } from "saturon";
+
+/**
+ * @see {@link https://www.w3.org/TR/css-color-hdr-1/|CSS Color HDR Module Level 1}
+ */
+Color.register("color-models", [
+    {
+        name: "jzczhz",
+        value: {
+            components: {
+                jz: { index: 0, value: [0, 1], precision: 5 },
+                cz: { index: 1, value: [-1, 1], precision: 5 },
+                hz: { index: 2, value: "hue", precision: 5 },
+                alpha: { index: 3, value: [0, 1], precision: 3 },
+            },
+            bridge: "jzazbz",
+            toBridge: ([Jz, cz, hz]: number[]): number[] => {
+                const hz_rad = (hz * Math.PI) / 180;
+                const az = cz * Math.cos(hz_rad);
+                const bz = cz * Math.sin(hz_rad);
+                return [Jz, az, bz];
+            },
+            fromBridge: ([Jz, az, bz]: number[]): number[] => {
+                const hz_radians = Math.atan2(bz, az);
+                const hz = (hz_radians * 180) / Math.PI;
+                const cz = Math.sqrt(az * az + bz * bz);
+                return [Jz, cz, hz < 0 ? hz + 360 : hz];
+            },
+        },
+    },
+]);
+```
+
+<Callout title="Note">
+    The JzCzHz color function relies on the ["jzazbz"](../register-color-functions/jzazbz) color function as a bridge.
+    Make sure to register that color function first if it's not already available in your Saturon setup.
+</Callout>
+
+## Usage
+
+```ts title="src/index.ts"
+import { Color } from "saturon";
+
+const validJzczhz = Color.isValid("jzczhz(0.4 -0.2 310deg)");
+console.log(validJzczhz); // true
+
+const validColorMix = Color.isValid("color-mix(in jzczhz, blue, pink)");
+console.log(validColorMix); // true
+
+console.log(Color.from("red").to("jzczhz"));
+```

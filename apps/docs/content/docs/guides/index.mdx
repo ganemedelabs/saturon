@@ -1,0 +1,71 @@
+---
+title: Guides & Tutorials Overview
+description: Explore step-by-step tutorials and practical tips to master Saturon.
+---
+
+import { Sparkles, Sliders, Blend, Eye, MonitorCheck, Zap, Puzzle } from "lucide-react";
+
+Explore our collection of guides to get the most out of Saturon. Each guide provides clear examples and practical tips for working with colors programmatically.
+
+<Cards>
+    <Card
+        icon={<Sparkles className="text-amber-500 dark:text-amber-400" />}
+        title="Creating Color Instances"
+        href="./guides/creating-colors"
+    >
+        Learn how to instantiate Color objects using the Color constructor, static from() parser, and random() generator.
+    </Card>
+
+    <Card
+        icon={<Sliders className="text-blue-500 dark:text-blue-400" />}
+        title="Working with Color Instances"
+        href="./guides/working-with-colors"
+    >
+        Discover how to convert, transform, extract, and format color channel values using in(), to(), with(), and data
+        extraction methods on Color instances.
+    </Card>
+
+    <Card
+        icon={<Blend className="text-purple-500 dark:text-purple-400" />}
+        title="Color Mixing & Interpolation"
+        href="./guides/color-mixing"
+    >
+        Master blending colors with mix(), creating multi-stop gradients with interpolate(), and generating discrete color
+        scale palettes.
+    </Card>
+
+    <Card
+        icon={<Eye className="text-emerald-500 dark:text-emerald-400" />}
+        title="Accessibility & Color Difference Checks"
+        href="./guides/accessibility-checks"
+    >
+        Ensure your colors are readable and accessible using the static contrast() and deltaE*() methods to measure
+        legibility and perceptual differences.
+    </Card>
+
+    <Card
+        icon={<MonitorCheck className="text-rose-500 dark:text-rose-400" />}
+        title="Gamut Mapping & Out-of-Gamut Handling"
+        href="./guides/gamut-mapping"
+    >
+        Safely handle colors that exceed display capabilities using Saturon's inGamut(), within(), fit(), and format
+        options.
+    </Card>
+
+    <Card
+        icon={<Puzzle className="text-orange-500 dark:text-orange-400" />}
+        title=" The Registry API"
+        href="./guides/registry"
+    >
+        Learn how to dynamically extend Saturon by registering custom color spaces, syntaxes, formatters, and gamut mapping methods at runtime.
+    </Card>
+
+    <Card
+        icon={<Zap className="text-cyan-500 dark:text-cyan-400" />}
+        title="Tree Shakability & Bundle Size"
+        href="./guides/tree-shakability"
+    >
+        Optimize your bundle size by using Saturon's standalone functional subpaths.
+    </Card>
+
+</Cards>

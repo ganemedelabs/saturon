@@ -1,0 +1,19 @@
+reg: Custom Component Registration
+
+ign: "Inject Grammar Nodes\n(e.g., <custom-space>)"
+mtg: "Mutate Target Grammar\n(e.g., <color> choices)"
+
+rac: Recompile AST Choice Expressions
+
+on_reg: "On Register\n(Append & Recompile)"
+on_unreg: "On Unregister\n(Prune & Recompile)"
+
+# Flow Connections
+reg -> ign
+reg -> mtg
+
+ign -> rac
+mtg -> rac
+
+rac -> on_reg
+rac -> on_unreg

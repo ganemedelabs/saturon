@@ -1,0 +1,142 @@
+---
+title: ICtCp
+description: A recipe to register the ICtCp color function in Saturon, supporting both PQ and HLG.
+---
+
+## Implementation
+
+```ts title="src/index.ts"
+import { Color } from "saturon";
+import { multiplyMatrices } from "saturon/converters";
+
+const N = 4096;
+
+const RGB_to_LMS = [
+    [1688 / N, 2146 / N, 262 / N],
+    [683 / N, 2951 / N, 462 / N],
+    [99 / N, 309 / N, 3688 / N],
+];
+
+const LMSp_to_ICTCP = [
+    [2048 / N, 2048 / N, 0 / N],
+    [6610 / N, -13613 / N, 7003 / N],
+    [17933 / N, -17390 / N, -543 / N],
+];
+
+const m1 = 2610 / 16384;
+const m2 = (2523 / 4096) * 128;
+const c1 = 3424 / 4096;
+const c2 = (2413 / 4096) * 32;
+const c3 = (2392 / 4096) * 32;
+
+function pqOETF(x: number) {
+    const xp = Math.pow(x, m1);
+    return Math.pow((c1 + c2 * xp) / (1 + c3 * xp), m2);
+}
+
+function pqEOTF(y: number) {
+    const yp = Math.pow(y, 1 / m2);
+    return Math.pow(Math.max(yp - c1, 0) / (c2 - c3 * yp), 1 / m1);
+}
+
+const REFERENCE_PEAK_LUMINANCE = 1000;
+const a = 0.17883277;
+const b = 0.28466892;
+const c = 0.55991073;
+
+function hlgOETF(E: number) {
+    if (E <= 1 / 12) return Math.sqrt(3 * E);
+    return a * Math.log(12 * E - b) + c;
+}
+
+function hlgEOTF(E_prime: number) {
+    if (E_prime <= 0.5) return (E_prime * E_prime) / 3;
+    return (Math.exp((E_prime - c) / a) + b) / 12;
+}
+
+function hlgOETF_norm(L: number) {
+    const E = L / REFERENCE_PEAK_LUMINANCE;
+    return hlgOETF(E);
+}
+
+function hlgEOTF_norm(E_prime: number) {
+    const E = hlgEOTF(E_prime);
+    return E * REFERENCE_PEAK_LUMINANCE;
+}
+
+const LMS_to_RGB = [
+    [3.43660668650384, -2.50645211965619, 0.06984543315235],
+    [-0.791329556583, 1.98360045251401, -0.19227089593101],
+    [0.02594989937188, -0.09891371469193, 1.07296381532005],
+];
+
+const ICTCP_to_LMSp = [
+    [1.0, 0.00860903703704, 0.111029625],
+    [1.0, -0.00860903703704, -0.111029625],
+    [1.0, 0.56003133501049, -0.32062717499839],
+];
+
+/**
+ * @see {@link https://www.itu.int/dms_pub/itu-r/opb/rep/R-REP-BT.2390-8-2020-PDF-E.pdf|High dynamic range television for production and international}
+ */
+export function registerICtCp(bridge: "rec2100-pq" | "rec2100-hlg") {
+    const isPQ = bridge === "rec2100-pq";
+
+    Color.register("color-models", [
+        {
+            name: "ictcp",
+            value: {
+                components: {
+                    i: { index: 0, value: [0, 1], precision: 5 },
+                    ct: { index: 1, value: [-1, 1], precision: 5 },
+                    cp: { index: 2, value: [-1, 1], precision: 5 },
+                    alpha: { index: 3, value: [0, 1], precision: 3 },
+                },
+                bridge,
+                fromBridge: ([R, G, B]: number[]) => {
+                    const LMS = multiplyMatrices(RGB_to_LMS, [R, G, B]);
+                    const LMSp = isPQ ? LMS.map(pqOETF) : LMS.map(hlgOETF_norm);
+                    const ICTCP = multiplyMatrices(LMSp_to_ICTCP, LMSp);
+                    return ICTCP;
+                },
+                toBridge: ([I, Ct, Cp]: number[]) => {
+                    const LMSp = multiplyMatrices(ICTCP_to_LMSp, [I, Ct, Cp]);
+                    const LMS = isPQ ? LMSp.map(pqEOTF) : LMSp.map(hlgEOTF_norm);
+                    const RGB = multiplyMatrices(LMS_to_RGB, LMS);
+                    return RGB.map((v) => Math.min(1, Math.max(0, v)));
+                },
+            },
+        },
+    ]);
+}
+```
+
+<Callout title="Requirements">
+   The ICtCp color function requires a BT.2100 bridge:
+    - For PQ: register ["rec2100-pq"](../register-color-spaces/rec2100-pq) first.
+    - For HLG: register ["rec2100-hlg"](../register-color-spaces/rec2100-hlg) first.
+
+    The main difference between PQ and HLG lies in how they handle luminance and viewing conditions:
+    - PQ (Perceptual Quantizer) is an absolute transfer function based on the human visual system, designed for mastering up to 10,000 cd/m² peak brightness. It provides more precise gradation in dark and bright regions, making it ideal for cinema, mastering, and controlled-viewing environments.
+    - HLG (Hybrid Log-Gamma) is a relative system optimized for broadcast and live production. It adapts to different displays without metadata and offers better compatibility with SDR systems, though with less precision in extreme highlights.
+
+    According to ITU-R BT.2390-8 (2020), neither is universally “better” — PQ is recommended for content mastering and distribution where display brightness is controlled, while HLG is recommended for live and broadcast workflows where backward compatibility and dynamic adaptation are priorities.
+
+</Callout>
+
+## Usage
+
+```ts title="src/index.ts"
+import { Color } from "saturon";
+
+registerICtCp("rec2100-pq");
+registerICtCp("rec2100-hlg");
+
+const validIctcp = Color.isValid("ictcp(0.3 0.1 -0.6 / 0.5)");
+console.log(validIctcp); // true
+
+const validColorMix = Color.isValid("color-mix(in ictcp, lime, blue)");
+console.log(validColorMix); // true
+
+console.log(Color.from("red").to("ictcp"));
+```

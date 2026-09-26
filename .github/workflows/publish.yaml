@@ -1,0 +1,88 @@
+# ==============================================================================
+# NPM PUBLISH WORKFLOW SETUP INSTRUCTIONS
+# ==============================================================================
+# This workflow automatically builds and publishes the `saturon` library package
+# to the NPM registry whenever the `version` in `packages/saturon/package.json`
+# is updated on the `main` branch.
+#
+# SETUP INSTRUCTIONS:
+#
+# OPTION A: Trusted Publishing (Recommended - Passwordless & Tokenless)
+# 1. Log in to https://www.npmjs.com
+# 2. Go to package settings for `saturon` -> "Settings" -> "Trusted Publishers".
+# 3. Click "Add Publisher" -> Select "GitHub Actions".
+# 4. Fill in:
+#    - Owner: ganemedelabs
+#    - Repository: saturon
+#    - Workflow filename: publish.yaml
+# 5. Save. Trusted Publishing uses OIDC to mint temporary tokens automatically.
+#
+# OPTION B: NPM Secret Token (Legacy Method)
+# 1. Generate an NPM Access Token at https://www.npmjs.com/settings/<your-user>/tokens
+# 2. Go to your GitHub Repository -> Settings -> Secrets and variables -> Actions.
+# 3. Add a new repository secret named `NPM_TOKEN`.
+# 4. Uncomment the `NODE_AUTH_TOKEN` line under the Publish step below.
+# ==============================================================================
+
+name: Publish NPM Package
+
+on:
+    push:
+        branches:
+            - main
+
+jobs:
+    publish:
+        runs-on: ubuntu-latest
+        permissions:
+            contents: read
+            id-token: write # Required for passwordless NPM Trusted Publishing (OIDC)
+
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
+
+            - name: Install pnpm
+              uses: pnpm/action-setup@v4
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version: "20"
+                  registry-url: "https://registry.npmjs.org"
+                  cache: "pnpm"
+
+            - name: Install dependencies
+              run: pnpm install
+
+            - name: Check the version
+              id: check
+              run: |
+                  PACKAGE_NAME=$(jq -r .name packages/saturon/package.json)
+                  CURRENT_VERSION=$(jq -r .version packages/saturon/package.json)
+                  echo "Package name: $PACKAGE_NAME"
+                  echo "Current version: $CURRENT_VERSION"
+
+                  LATEST_VERSION=$(npm show "$PACKAGE_NAME" version 2>/dev/null || echo "0.0.0")
+                  echo "Latest version: $LATEST_VERSION"
+
+                  if [ "$LATEST_VERSION" != "$CURRENT_VERSION" ]; then
+                    echo "Version changed"
+                    echo "version_changed=true" >> $GITHUB_OUTPUT
+                    echo "new_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+                  else
+                    echo "Version not changed"
+                    echo "version_changed=false" >> $GITHUB_OUTPUT
+                  fi
+
+            - name: Build Library
+              if: steps.check.outputs.version_changed == 'true'
+              run: pnpm --filter saturon build
+
+            - name: Publish Package
+              if: steps.check.outputs.version_changed == 'true'
+              run: pnpm --filter saturon publish --no-git-checks --provenance
+              env:
+                  # NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }} # (Uncomment if using Option B above)
+                  NPM_CONFIG_PROVENANCE: true

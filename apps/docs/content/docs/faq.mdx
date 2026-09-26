@@ -1,0 +1,304 @@
+---
+title: FAQ
+icon: CircleQuestionMark
+description: Common questions about using Saturon's Color class and utilities
+---
+
+## How do I create a new `Color` instance?
+
+Use `Color.from(string)` to create a `Color` instance from a CSS color string, `new Color(model, coords)` for explicit model and coordinates, or `Color.random()` for random colors.
+
+```ts
+import { Color } from "saturon";
+
+const fromString = Color.from("#ff5733"); // { model: "rgb", coords: [255, 87, 51, 1] }
+const fromCoords = new Color("hsl", [120, 100, 50]); // { model: "hsl", coords: [120, 100, 50, 1] }
+const randomColor = Color.random(); // Random color
+```
+
+See [Guides: Creating Color Instances](./guides/creating-colors) for details.
+
+---
+
+## How do I convert a color to a different model?
+
+Use the `in()` method to convert a `Color` instance to another model (e.g., `hsl` to `oklab`). It returns a new `Color` instance in the specified model.
+
+```ts
+import { Color } from "saturon";
+
+const rgbColor = Color.from("rgb(255 87 51)");
+const hslColor = rgbColor.in("hsl");
+console.log(hslColor.toString()); // hsl(15 100 60)
+```
+
+<Callout type="warn" title="Note on in() vs to()">
+    Don't confuse `in()` with the `to()` method — `in()` converts the color to another model, while `to()` serializes it
+    to a string.
+</Callout>
+
+See [Color Class: in()](./api/color-class#in) for details.
+
+---
+
+## What's the difference between `to()` and `toString()`?
+
+The `to()` method converts a `Color` instance to any supported output type (e.g., `rgb`, `hsl`, `named-color`), including non-model formats like `hex-color` that can't be used as color models themselves. It supports formatting options like `legacy`, `fit`, and `precision`. In contrast, `toString()` formats the color as a string in its current model only, using the same formatting options but without model conversion.
+
+```ts
+import { Color } from "saturon";
+
+const color = Color.from("rgb(255 87 51)");
+console.log(color.to("hex-color")); // #ff5733 (non-model output type)
+console.log(color.toString()); // rgb(255 87 51) (current model only)
+```
+
+See [Color Class: to()](./api/color-class#to) and [Color Class: toString()](./api/color-class#tostring) for details.
+
+---
+
+## What's the difference between `toArray()` and the `coords` property?
+
+The `coords` property exposes the raw, unprocessed coordinate values of the `Color` instance in its current model. It returns the coordinates exactly as they were defined — including any special numeric values such as `NaN`, `Infinity`, or `-Infinity` — without applying gamut mapping, or normalization.
+
+In contrast, the `toArray()` method returns a normalized array of coordinates. It respects options like `fit` and `precision`, and also maps special numeric values to their CSS-equivalent representations:
+
+- `NaN` → treated as the CSS keyword `none` (converted to 0)
+- `Infinity` → treated as `calc(infinity)` (converted to the maximum representable value in the model)
+- `-Infinity` → treated as `calc(-infinity)` (converted to the minimum representable value in the model)
+
+```ts
+import { Color } from "saturon";
+
+const color = new Color("hsl", [NaN, -Infinity, Infinity]);
+
+console.log(color.coords); // [NaN, -Infinity, Infinity]
+console.log(color.toArray()); // [0, 0, 255]
+```
+
+See [Color Class: toArray()](./api/color-class#toarray) and [Color Class Constructor](./api/color-class#constructor) for details.
+
+---
+
+## How do I modify a color's components?
+
+Use `with()` method to create a new `Color` instance with updated component values. It supports direct updates, functional updates, or coordinate array replacements.
+
+```ts
+// Direct object
+color.with({ l: 50 });
+
+// Functional component
+color.with({ r: (r) => r * 2 });
+
+// Functional bulk
+color.with(({ r, g, b }) => ({ r: r * 0.5 }));
+
+// Array replacement
+color.with([0.5, 0.6, 0.7, 1]);
+
+// Functional array
+color.with(({ r, g, b }) => [r, g, b, 0.5]);
+```
+
+<Callout type="idea" title="Pro tip">
+
+Always call `in()` before using `with()`. The `with()` method can throw an error if you try to update a component that doesn't exist in the color's current model. Using `in()` first ensures that you're working in the correct color space and gives you type-safe access to components — without forcing an unnecessary conversion if the color is already in that model.
+
+```ts
+const color = Color.from("purple");
+
+// Unsafe — throws, because "purple" is in the "rgb" model
+const unsafe = color.with({ h: (h) => h + 30 });
+
+// Safe — ensures conversion to "hsl" first
+const safe = color.in("hsl").with({ h: (h) => h + 30 });
+```
+
+</Callout>
+
+See [Color Class: with()](./api/color-class#with), and [Color Class: in()](./api/color-class#in).
+
+---
+
+## How do I mix colors?
+
+The static `Color.mix()` method blends a set of `Color` instances together, supporting hue interpolation methods, and alpha blending.
+
+```ts
+import { Color } from "saturon";
+
+const color1 = Color.from("hsl(50 100% 50%)");
+const color2 = Color.from("hsl(200 100% 50%)");
+const mixed = Color.mix([{ color: color1 }, { color: color2, percentage: 0.5 }], { hue: "shorter" });
+console.log(mixed.toString()); // hsl(125 100 50)
+```
+
+This is equivalent to the CSS `color-mix()` expression `color-mix(in hsl shorter hue, hsl(50 100% 50%), hsl(200 100% 50%) 50%)`, which can be parsed using `Color.from()` and yields the same result.
+
+See [Guides: Color Mixing & Interpolation](./guides/color-mixing) for details.
+
+---
+
+## How do I ensure a color fits within a specific gamut?
+
+Use the `within()` method to fit a color into a target gamut (e.g., `srgb`, `display-p3`) using methods like `clip` or `css-gamut-map`. You can also specify `fit` in `to()`, `toString()`, `toArray()`, or `toObject()`.
+
+```ts
+import { Color } from "saturon";
+
+const wideColor = Color.from("color(display-p3 1 0 0)");
+const clippedColor = wideColor.within("srgb", "clip");
+console.log(clippedColor.to("rgb")); // rgb(255 0 0)
+```
+
+See [Guides: Gamut Mapping](./guides/gamut-mapping) for details.
+
+---
+
+## How do I ensure a color fits within its own gamut before converting?
+
+Use the `fit()` method to adjust a color's components so they fall within the valid range of its current model before converting it to another space. This is useful for sanitizing colors that may have out-of-gamut values.
+
+```ts
+import { Color } from "saturon";
+
+const wideColor = new Color("oklab", [0.5, -0.5, 0.2]);
+const clippedColor = wideColor.fit({ method: "clip" });
+console.log(clippedColor.to("display-p3")); // color(display-p3 0 0.57416 0)
+```
+
+See [Guides: Gamut Mapping](./guides/gamut-mapping) for details.
+
+---
+
+## How do I calculate the luminance of a color?
+
+According to the WCAG 2.1 definition, use the Y component from the color's XYZ representation.
+
+```ts
+import { Color } from "saturon";
+
+const color = Color.from("rgb(25 189 151)");
+const [, luminance] = color.in("xyz-d65").toArray();
+```
+
+See [Color Class: in()](./api/color-class#in) for details.
+
+---
+
+## How do I calculate the contrast ratio between two colors?
+
+The `contrast()` method computes the WCAG 2.1 contrast ratio between two colors, useful for accessibility checks. Ratios ≥4.5 are recommended for normal text.
+
+```ts
+import { Color } from "saturon";
+
+const textColor = Color.from("rgb(50 50 50)");;.
+const bgColor = Color.from("white");
+console.log(textColor.contrast(bgColor)); // e.g., 12.8 (accessible)
+```
+
+<Callout type="warn" title="Note on the WCAG contrast algorithm">
+    The [W3C CSS Color Level 5 specification](https://www.w3.org/TR/css-color-5/#contrast-color) cautions against
+    relying solely on the WCAG 2.1 §1.4.3 contrast ratio algorithm when determining whether to use light or dark colors.
+    This is because the WCAG 2.1 method has several known limitations — like poor hue handling and perceptual
+    differences. That said, the `contrast()` method remains suitable for most accessibility use cases, especially for
+    verifying compliance with [WCAG 2.1 §1.4.3 (Contrast — Minimum)](https://www.w3.org/TR/WCAG21/#contrast-minimum)
+    requirements (e.g., AA-level contrast for normal or large text), which are still widely referenced in accessibility
+    standards and legal guidelines.
+</Callout>
+
+See [Guides: Accessibility & Color Difference Checks](./guides/accessibility-checks#contrast) for details.
+
+---
+
+## How do I measure color differences?
+
+Use `deltaEOK()`, `deltaE76()`, `deltaE94()`, or `deltaE2000()` to calculate color differences in OKLAB or LAB color spaces. `deltaE2000()` is the most perceptually accurate.
+
+```ts
+import { Color } from "saturon";
+
+const color1 = Color.from("rgb(255 87 51)");
+const color2 = Color.from("rgb(255 100 60)");
+console.log(color1.deltaE2000(color2)); // e.g., 2.5 (small difference)
+```
+
+See [Guides: Accessibility & Color Difference Checks](./guides/accessibility-checks#delta) details.
+
+---
+
+## How do I register a custom color syntax?
+
+Use the static `Color.register()` method to define new syntaxes, color functions, named colors, or fit methods.
+
+```ts
+Color.register("color-function", [
+    {
+        name: "hsv",
+        value: {
+            components: {
+                h: { index: 0, value: "hue", precision: 0 },
+                s: { index: 1, value: "percentage", precision: 0 },
+                v: { index: 2, value: "percentage", precision: 0 },
+                alpha: { index: 3, value: [0, 1], precision: 3 },
+            },
+            bridge: "hsl",
+            toBridge: (hsv: number[]) => {
+                const [h, s, v] = hsv.map((c, i) => (i === 0 ? c : c / 100));
+                const l = v * (1 - s / 2);
+                const s_hsl = l === 0 || l === 1 ? 0 : (v - l) / Math.min(l, 1 - l);
+                return [h, s_hsl * 100, l * 100];
+            },
+            fromBridge: (hsl: number[]) => {
+                const [h, s, l] = hsl.map((c, i) => (i === 0 ? c : c / 100));
+                const v = l + s * Math.min(l, 1 - l);
+                const s_hsv = v === 0 ? 0 : 2 * (1 - l / v);
+                return [h, s_hsv * 100, v * 100];
+            },
+        },
+    },
+]);
+```
+
+See [Recipes](./recipes) for details.
+
+---
+
+## Can I add custom methods to the `Color` class?
+
+Yes, use the static `Color.use()` method to register plugins that extend the `Color` class with custom methods.
+
+```ts
+import { Color } from "saturon";
+
+Color.use((ColorClass) => {
+    ColorClass.prototype.luminance = function () {
+        const [, luminance] = this.in("xyz-d65").toArray({
+            fit: "none",
+            precision: null,
+        });
+        return luminance;
+    };
+});
+```
+
+See [Color Class: use()](./api/color-class#use) for details.
+
+---
+
+## Why does Saturon allow creating a `Color` instance without specifying coordinates?
+
+When you create a `Color` instance without specifying coordinates, Saturon initializes the color with all zero channel values.
+This ensures you always get a valid color object (e.g., black for `rgb`, or the zero-point for other models).
+
+This can be useful when:
+
+- You want a placeholder or default color before assigning values.
+- You're generating colors programmatically and need a consistent starting point.
+- You want to avoid `null` or `undefined` checks when constructing colors dynamically.
+
+Think of it like creating an empty `Date` or `Vector3(0, 0, 0)` — it's a safe, neutral starting value.
+
+See [Color Class Constructor](./api/color-class#constructor) for details.

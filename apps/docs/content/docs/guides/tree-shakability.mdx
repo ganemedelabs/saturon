@@ -1,0 +1,88 @@
+---
+title: Tree Shakability & Bundle Size
+description: Optimize your bundle size by using Saturon's standalone functional subpaths.
+---
+
+Saturon is designed to be highly modular. While the `Color` class provides a convenient, chainable, object-oriented API, it requires bundling the entire class and its associated internal methods.
+
+If you are building for the web and need strict bundle-size optimizations, Saturon allows you to bypass the `Color` class entirely. Every method powering the class is exposed as a pure, standalone function via utility subpaths.
+
+## The Trade-off: OOP vs. Functional
+
+When you use the object-oriented approach, your bundler (like Webpack, Rollup, or Vite) cannot safely remove unused methods from the `Color` class, because JavaScript classes are inherently difficult to tree-shake.
+
+By importing specific subpaths, you adopt a functional programming paradigm. Your bundler can easily drop any Saturon functions you don't explicitly import, resulting in a dramatically smaller footprint.
+
+---
+
+## Code Comparison
+
+Let's look at a common workflow: parsing a color, converting it to LCH, lightening it, and formatting it as a CSS string.
+
+### 1. The Object-Oriented Way (Convenient, but larger bundle)
+
+This approach is highly readable and quick to write, but it pulls in the full `Color` class.
+
+```ts
+import { Color } from "saturon";
+
+const myColor = new Color("red")
+    .in("lch")
+    .with({ l: (l) => l + 20 })
+    .toString();
+
+console.log(myColor); // lch(...)
+```
+
+### 2. The Tree-Shakable Way (Optimized bundle)
+
+By importing only the specific utilities you need, you ensure that functions like `colorMix`, `contrast`, or `gamut` are completely stripped from your final build if you don't use them.
+
+```ts
+import parse from "saturon/parse";
+import convert from "saturon/convert";
+import updateColor from "saturon/updateColor";
+import format from "saturon/format";
+
+// 1. Parse the initial string into raw color data
+const raw = parse("red");
+
+// 2. Convert to the target color space
+const lchCoords = convert(raw, "lch");
+
+// 3. Update the lightness channel
+const lighterLchCoords = updateColor({ model: "lch", coords: lchCoords }, { l: (l) => l + 20 });
+
+// 4. Serialize back to a CSS string
+const result = format({ model: "lch", coords: lighterLchCoords }, "lch");
+
+console.log(result); // lch(...)
+```
+
+<Callout type="idea" title="Tip for modern JS">
+Because the subpaths rely on pure functions that take data as the first argument, they pair beautifully with functional composition utilities (like `pipe` or `compose`) or the upcoming JavaScript Pipeline Operator (`|>`).
+
+```ts
+import parse from "saturon/parse";
+import convert from "saturon/convert";
+import updateColor from "saturon/updateColor";
+import format from "saturon/format";
+
+const result = "red"
+  |> parse(%)
+  |> convert(%, "lch")
+  |> updateColor({ model: "lch", coords: % }, { l: (l) => l + 20 })
+  |> format({ model: "lch", coords: % }, "lch");
+
+console.log(result); // lch(...)
+```
+
+</Callout>
+
+---
+
+## Exploring Available Subpaths
+
+You can build almost any color manipulation pipeline using just the utility subpaths. From calculating contrast to interpolating gradients, everything is available as a direct import.
+
+To see the complete list of available utilities and how to use them, refer to the [Utility Subpaths API Reference](/docs/api/subpaths).

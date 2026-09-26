@@ -1,0 +1,46 @@
+---
+title: Graph Pathfinding
+description: Discover how dynamic Bidirectional Graph (BFS) pathfinding eliminates the need for exhaustive, hardcoded conversion matrices between color models.
+---
+
+Saturon's color conversion engine is designed to solve a fundamental scaling problem in color science: the N-squared conversion matrix. Hardcoding direct mathematical translations between every supported color model would require an unmaintainable number of highly specific functions.
+
+Instead, Saturon employs a graph-based routing architecture. By utilizing intermediate "bridge" color spaces, the engine dynamically calculates the shortest conversion path between any two formats.
+
+Here is a look under the hood at how the conversion architecture wires these components together.
+
+## 1. The Bridge Pattern (Model Registry)
+
+At the foundation of the conversion architecture is the centralized `colorModels` registry. Instead of knowing how to convert to every other format, a color model only needs to know how to translate to and from a single designated `bridge` space.
+
+- The `toBridge` function transforms native coordinates into the bridge space.
+- The `fromBridge` function reverses the process, translating bridge coordinates back to the native space.
+- For example, `hsl` defines its bridge as `rgb`. Meanwhile, `rgb` defines its bridge as `xyz-d65`.
+
+This creates a massive, interconnected web of color spaces where every format is universally compatible.
+
+---
+
+## 2. Dynamic Graph Generation
+
+When a conversion is requested via the `convert()` pipeline, the engine does not rely on hardcoded maps. Instead, it reads the `bridge` properties of all registered models to dynamically construct a bidirectional adjacency graph.
+
+Because this graph is built programmatically at runtime, the architecture is inherently extensible. If custom color spaces are injected into the engine's configuration later, the graph automatically scales to accommodate them. Once generated, this graph is stored in the internal memory cache to eliminate overhead on subsequent calls.
+
+---
+
+## 3. Pathfinding via Breadth-First Search
+
+With the graph established, Saturon must determine the most efficient mathematical route from the input model to the target model.
+
+- The engine generates a unique string key for the requested conversion pair (e.g., `"hsl-oklch"`).
+- It deploys a Breadth-First Search (BFS) algorithm across the cached adjacency graph.
+- The BFS traverses the nodes to find the absolute shortest path connecting the origin to the destination.
+- The resulting path array (e.g., `["hsl", "rgb", "xyz-d65", "oklab", "oklch"]`) is saved to a dedicated `paths` cache.
+- Future conversions between these two models will bypass the search algorithm entirely and instantly retrieve the cached route.
+
+---
+
+## 4. The Execution Pipeline
+
+With the path resolved, the engine pipes the normalized coordinates (with `NaN` values sanitized to `0`) sequentially through each node's `toBridge` or `fromBridge` methods along the route, reattaching the untouched alpha channel at the target space.

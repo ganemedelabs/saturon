@@ -1,0 +1,19 @@
+{
+    "name": "saturon-monorepo",
+    "private": true,
+    "scripts": {
+        "dev": "pnpm --filter saturon-docs dev",
+        "start": "pnpm --filter saturon-docs start",
+        "build": "pnpm --filter saturon build && pnpm --filter saturon-docs build",
+        "build:lib": "pnpm --filter saturon build",
+        "test": "pnpm --filter saturon test",
+        "publish:lib": "pnpm --filter saturon publish --no-git-checks",
+        "lint": "pnpm -r run lint",
+        "lint:fix": "pnpm -r run lint:fix",
+        "format": "prettier --write \"**/*.{js,jsx,ts,tsx,json,md,mdx}\""
+    },
+    "packageManager": "pnpm@9.0.0",
+    "devDependencies": {
+        "@types/node": "^26.6.2"
+    }
+}

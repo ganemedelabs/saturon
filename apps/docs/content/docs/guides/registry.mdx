@@ -1,0 +1,225 @@
+---
+title: The Registry API
+description: Learn how to use the register() and unregister() methods to dynamically add or remove color models, spaces, parsers, formatters, and algorithms.
+---
+
+import { Palette, FunctionSquare, Layers, Puzzle, SunMoon, Code, Settings2, Trash2 } from "lucide-react";
+
+The Saturon Registry API allows you to deeply extend the engine without modifying the core library. Whether you need a proprietary color model, a custom string parser, or a specific gamut mapping algorithm, the registry seamlessly injects your custom logic directly into the global execution graph.
+
+All extensions are managed through two batch-processing methods: `register()` and `unregister()`.
+
+## API Signature
+
+```ts
+import { register, unregister } from "saturon/registry";
+
+// Add new features
+register(category, [{ name: "identifier", value: implementation }]);
+
+// Remove features and flush caches
+unregister(category, ["identifier"]);
+```
+
+Saturon supports seven distinct registration categories.
+
+---
+
+## 1. Named Colors (`"named-colors"`) [#named-colors]
+
+Inject hardcoded color aliases into the CSS string parser. These become instantly available to `Color.from()` and relative color syntax operations.
+
+### Expected Value: `[R, G, B]` (Array of 3 numbers, 0-255)
+
+```ts
+register("named-colors", [
+    { name: "brandprimary", value: [88, 101, 242] },
+    { name: "brandaccent", value: [254, 231, 92] },
+]);
+
+import { Color } from "saturon";
+const btn = Color.from("brandprimary");
+```
+
+---
+
+## 2. Custom Color Models (`"color-models"`) [#color-models]
+
+Registers a standalone CSS color model/function (e.g., `cmyk()`, `hsi()`). This requires defining the component bounds and providing conversion functions to an existing "bridge" model (like `rgb` or `xyz`).
+
+### Expected Value: `ColorModelConverter`
+
+```ts
+register("color-models", [
+    {
+        name: "my-rgb",
+        value: {
+            bridge: "rgb", // Route conversions through standard RGB
+            targetGamut: "srgb",
+            components: {
+                r: { index: 0, value: [0, 255] },
+                g: { index: 1, value: [0, 255] },
+                b: { index: 2, value: [0, 255] },
+            },
+            toBridge: (coords) => coords, // Native -> Bridge
+            fromBridge: (coords) => coords, // Bridge -> Native
+        },
+    },
+]);
+```
+
+Once registered, the engine auto-generates the grammar, allowing:
+`Color.from("my-rgb(100 50 25)")` or `Color.from("from my-rgb(100 50 25) my-rgb(r g calc(b * 2))")`.
+
+---
+
+## 3. Custom Color Spaces (`"color-spaces"`) [#color-spaces]
+
+Registers matrix-based color spaces for use inside the CSS `color(...)` function (e.g., `color(display-p3 1 0 0)`).
+
+### Expected Value: `ColorSpaceConverter`
+
+```ts
+register("color-spaces", [
+    {
+        name: "custom-p3",
+        value: {
+            bridge: "xyz-d65",
+            components: ["r", "g", "b"],
+            // Conversion matrices (Linear Space <-> XYZ-D65)
+            toBridgeMatrix: [
+                [0.48657, 0.26566, 0.19821],
+                [0.22897, 0.69173, 0.07928],
+                [0.0, 0.04511, 1.04394],
+            ],
+            fromBridgeMatrix: [
+                [2.49349, -0.93138, -0.40271],
+                [-0.82868, 1.76266, 0.02362],
+                [0.03584, -0.07617, 0.95688],
+            ],
+            // Non-linear transfer functions
+            toLinear: (c) => (c < 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4)),
+            fromLinear: (c) => (c <= 0.0031308 ? c * 12.92 : 1.055 * Math.pow(c, 1 / 2.4) - 0.055),
+        },
+    },
+]);
+```
+
+---
+
+## 4. Output Formatters (`"formatters"`) [#formatters]
+
+Adds a new serialization format for `.to()` and `.toString()`. Formatters require a `bridge` model and a `format` method to construct the string.
+
+### Expected Value: `ColorFormatter`
+
+```ts
+register("formatters", [
+    {
+        name: "hex-alpha",
+        value: {
+            bridge: "rgb",
+            fromBridge: (coords) => coords,
+            format: (coords, options) => {
+                const [r, g, b, a = 1] = coords;
+                const toHex = (n: number) => Math.round(n).toString(16).padStart(2, "0");
+                return `#${toHex(r)}${toHex(g)}${toHex(b)}${toHex(a * 255)}`;
+            },
+        },
+    },
+]);
+
+const color = Color.from("rgb(255 0 0 / 0.5)");
+console.log(color.to("hex-alpha")); // "#ff00007f"
+```
+
+---
+
+## 5. Grammar Parsers & Shortcuts [#grammar]
+
+If you need Saturon to understand completely new string syntaxes, use the `"parsers"` and `"shortcuts"` categories.
+
+### Shortcuts (`"shortcuts"`) [#shortcuts]
+
+Shortcuts are fast, regex-based interceptors evaluated before the main AST parser.
+
+```ts
+register("shortcuts", [
+    {
+        name: "<my-shortcut>",
+        value: {
+            appendTo: "<color>", // Hook this directly into the main parser
+            parse: (str) => {
+                if (str === "mystic-red") {
+                    return { model: "rgb", coords: [255, 50, 50, 1] };
+                }
+                return null;
+            },
+        },
+    },
+]);
+```
+
+### Advanced AST Parsers (`"parsers"`) [#parsers]
+
+For complex grammar, inject W3C-style syntactical nodes directly into `grammarMap`.
+
+```ts
+register("parsers", [
+    {
+        name: "<custom-prefix-syntax>",
+        value: {
+            appendTo: "<color>",
+            rule: "'custom:' <hex-color>",
+            parse: (node) => {
+                // Return model and coords extracted from the AST node
+                return { model: "rgb", coords: [255, 255, 255] };
+            },
+        },
+    },
+]);
+```
+
+---
+
+## 6. Gamut Mapping Methods (`"fit-methods"`) [#fit-methods]
+
+Defines custom algorithms for mapping out-of-gamut colors to safe values during `.within()` or formatted output.
+
+### Expected Value: `FitFunction`
+
+```ts
+register("fit-methods", [
+    {
+        name: "ceiling-clip",
+        value: (colorData) => {
+            // A brutal algorithm that forces any out-of-range value to 100
+            return colorData.coords.map((val) => (val > 100 ? 100 : val));
+        },
+    },
+]);
+
+const color = Color.from("color(display-p3 2 0 0)");
+color.within("srgb", { method: "ceiling-clip" });
+```
+
+---
+
+## Unregistering Components [#unregister]
+
+To cleanly remove a plugin, pass its category and name to `unregister()`.
+
+Saturon will automatically prune the grammar trees, drop the parsers, and flush the global shortest-path caches to guarantee there are no dead routing edges.
+
+```ts
+import { unregister } from "saturon/registry";
+
+unregister("color-models", ["my-rgb"]);
+unregister("named-colors", ["brandprimary", "brandaccent"]);
+```
+
+---
+
+## Next Steps: Explore the Recipes [#recipes]
+
+For in-depth, detailed examples on implementing these advanced extensions, head over to the [Recipes Overview](/docs/recipes).

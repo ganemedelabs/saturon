@@ -1,0 +1,73 @@
+---
+title: Formatting & Serialization
+description: See how normalized, internal coordinates are cleanly serialized back into spec-compliant CSS strings, hex codes, or custom formats.
+---
+
+The final step in a color engine's lifecycle is serialization—taking mathematically complex, floating-point data and transforming it into clean, spec-compliant CSS strings.
+
+To achieve this without creating a massive, monolithic switch statement for every possible syntax, Saturon utilizes a modular, auto-generating Formatting Registry. This architecture strictly separates the internal coordinate logic from the string construction rules.
+
+Here is a breakdown of how the formatting architecture operates under the hood.
+
+## The Public API
+
+Saturon exposes serialization through two primary interfaces, ensuring developers have flexibility depending on their performance requirements.
+
+### `Color.prototype.to(format)`
+
+The standard method attached to every `Color` instance. It accepts a target output format and optional formatting configurations (like precision rounding, legacy syntax, or gamut fitting).
+
+```typescript
+const color = Color.from("oklch(70% 0.1 330)");
+
+color.to("rgb");
+// Returns: "rgb(204 122 235)"
+
+color.to("hex-color");
+// Returns: "#cc7aeb"
+```
+
+### `format(colorData, toType)`
+
+The underlying utility that bypasses object instantiation overhead. It takes raw `ColorData`, processes it through the necessary conversion and formatting pipelines, and returns the final string.
+
+---
+
+## 1. The Formatter Registry
+
+At the core of the serialization engine is the `formatters` dictionary. Instead of manually writing formatting logic for every color space, Saturon dynamically generates the bulk of this registry at initialization.
+
+- Auto-Generation: The engine iterates through the centralized `colorModels` registry. It automatically constructs a highly optimized `ColorFormatter` object for every standard CSS color model (e.g., `rgb`, `hsl`, `display-p3`, `oklch`).
+
+- Custom Overrides: After the standard models are generated, the engine manually appends specialized output formats that require unique serialization logic, such as `"hex-color"`, `"named-color"`, and `"device-cmyk"`.
+
+This design ensures that if a new color space is added to the engine's core configuration, a formatter for it is instantly and automatically available without writing additional string-building logic.
+
+---
+
+## 2. Integration with the Bridge Pattern
+
+The formatting architecture inherently relies on the conversion engine's graph-based routing.
+
+A specific formatter does not need to know how to translate coordinates from every possible origin model. It only needs to declare a `bridge` model.
+
+For example, the `"hex-color"` formatter declares `"rgb"` as its bridge. If you request a hex string from an `oklch` color, the formatting pipeline intercepts this:
+
+1. It passes the `oklch` data to the conversion engine, requesting a route to the `"rgb"` bridge.
+2. The conversion engine returns the normalized RGB coordinates.
+3. The formatter safely maps those RGB numbers into a base-16 string.
+
+---
+
+## 3. The Execution Pipeline
+
+When `format()` is invoked, the data flows through a strict pipeline to ensure the output is physically accurate, mathematically precise, and syntactically correct.
+
+1. Routing & Conversion
+   The engine checks if the color is already in the target format. If not, it leverages the conversion graph to translate the color into the formatter's designated `bridge` space, and then pushes it through the `fromBridge` method to get the final local coordinates.
+2. Gamut Mapping (`fit`)
+   Before any string concatenation happens, the coordinates are passed through the gamut mapping engine. Depending on the `fit` option provided (defaulting to the engine's global config), the color is mathematically constrained to ensure the output represents a valid, displayable color in that specific space.
+3. Component Normalization
+   The constrained coordinates are processed by `normalizeComponentValue`. This step applies decimal precision rounding. It also checks the component definitions to determine if specific numbers require CSS units. If configured, it automatically appends `%` for percentage channels or `deg` for hue channels.
+4. Syntax Construction
+   Finally, the `format` method evaluates the target output type and constructs the string. It handles logic for modern CSS Level 4 syntax (space-separated, e.g., `hsl(250 50% 50% / 0.5)`), the `color()` function syntax (e.g., `color(display-p3 1 0 0)`), or falls back to legacy comma-separated syntax if explicitly requested and supported by the format.

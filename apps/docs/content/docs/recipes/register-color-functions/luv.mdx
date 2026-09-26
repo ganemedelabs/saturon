@@ -1,0 +1,76 @@
+---
+title: Luv
+description: A recipe to register the Luv color function in Saturon.
+---
+
+## Implementation
+
+```ts title="src/index.ts"
+import { Color } from "saturon";
+
+/**
+ * @see {@link http://www.brucelindbloom.com/index.html?Eqn_Luv_to_XYZ.html|Luv to XYZ}
+ * @see {@link http://www.brucelindbloom.com/index.html?Eqn_XYZ_to_Luv.html|XYZ to Luv}
+ */
+Color.register("color-models", [
+    {
+        name: "luv",
+        value: {
+            components: {
+                l: { index: 0, value: "percentage", precision: 5 },
+                u: { index: 1, value: [-100, 100], precision: 5 },
+                v: { index: 2, value: [-100, 100], precision: 5 },
+                alpha: { index: 3, value: [0, 1], precision: 3 },
+            },
+            targetGamut: null,
+            bridge: "xyz-d50",
+            toBridge: ([L, u, v]: number[]) => {
+                const Xn = 0.96422;
+                const Yn = 1.0;
+                const Zn = 0.82521;
+                if (L === 0) return [0, 0, 0];
+                const denom_n = Xn + 15 * Yn + 3 * Zn;
+                const u_n = (4 * Xn) / denom_n;
+                const v_n = (9 * Yn) / denom_n;
+                const Y = L > 8 ? Yn * Math.pow((L + 16) / 116, 3) : Yn * (L / 903.3);
+                const u_prime = u / (13 * L) + u_n;
+                const v_prime = v / (13 * L) + v_n;
+                const X = (9 * Y * u_prime) / (4 * v_prime);
+                const Z = (Y * (12 - 3 * u_prime - 20 * v_prime)) / (4 * v_prime);
+                return [X, Y, Z];
+            },
+            fromBridge: ([X, Y, Z]: number[]) => {
+                const Xn = 0.96422;
+                const Yn = 1.0;
+                const Zn = 0.82521;
+                const denom_n = Xn + 15 * Yn + 3 * Zn;
+                const u_n = (4 * Xn) / denom_n;
+                const v_n = (9 * Yn) / denom_n;
+                const denom = X + 15 * Y + 3 * Z;
+                const u_prime = denom !== 0 ? (4 * X) / denom : 0;
+                const v_prime = denom !== 0 ? (9 * Y) / denom : 0;
+                const Yr = Y / Yn;
+                const L = Yr > Math.pow(6 / 29, 3) ? 116 * Math.cbrt(Yr) - 16 : 903.3 * Yr;
+                if (L === 0) return [0, 0, 0];
+                const u = 13 * L * (u_prime - u_n);
+                const v = 13 * L * (v_prime - v_n);
+                return [L, u, v];
+            },
+        },
+    },
+]);
+```
+
+## Usage
+
+```ts title="src/index.ts"
+import { Color } from "saturon";
+
+const validLuv = Color.isValid("luv(80% 23 -65)");
+console.log(validLuv); // true
+
+const validColorMix = Color.isValid("color-mix(in luv, green, yellow)");
+console.log(validColorMix); // true
+
+console.log(Color.from("orange").to("luv"));
+```

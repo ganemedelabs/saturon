@@ -1,0 +1,120 @@
+---
+title: saturon/gamut
+description: Check color gamut boundaries and fit out-of-bounds coordinates into physical gamut spaces.
+---
+
+The `saturon/gamut` subpath provides utilities for inspecting gamut boundary limits (`inGamut()`) and mapping out-of-bounds color coordinates back into target physical gamut spaces (`toGamut()`).
+
+## `inGamut()` [#in-gamut]
+
+Determines whether a given color's coordinates lie strictly within the physical boundaries of a target color gamut space, taking floating-point precision tolerances into account.
+
+```ts
+import { inGamut } from "saturon/gamut";
+
+const color = { model: "display-p3", coords: [1, 0, 0, 1] };
+
+const isInsRGB = inGamut(color, "srgb");
+console.log(isInsRGB); // false (or true depending on exact coordinate range)
+```
+
+### Signature
+
+```ts
+function inGamut(color: ColorData, gamut: ColorSpace | string, options?: InGamutOptions): boolean;
+```
+
+### Parameters
+
+| Parameter | Type                   | Description                                                                         |
+| --------- | ---------------------- | ----------------------------------------------------------------------------------- |
+| `color`   | `ColorData`            | The raw color data object (`{ model, coords }`) to evaluate.                        |
+| `gamut`   | `ColorSpace \| string` | The target gamut/color space name to test against (e.g., `"srgb"`, `"display-p3"`). |
+| `options` | `InGamutOptions`       | Optional settings controlling the boundary check behavior.                          |
+
+### Options (`InGamutOptions`)
+
+| Option    | Type     | Default                   | Description                                                                                                  |
+| --------- | -------- | ------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `epsilon` | `number` | `config.defaults.epsilon` | Floating-point threshold tolerance applied to the minimum and maximum boundaries during comparison (`1e-5`). |
+
+### Returns
+
+A `boolean` value indicating whether all component coordinates fall within the gamut limits ($\text{min} - \epsilon \le v \le \text{max} + \epsilon$). Returns `true` automatically if the target color model has no bounded physical gamut.
+
+### Behavior
+
+1. Checks whether the specified `gamut` string exists in `colorSpaces`.
+2. If the target model defines no `targetGamut` limits, returns `true` immediately.
+3. Converts the input color to the target space via `toNormArray()`.
+4. Checks every component value against its defined bounds (`[min, max]`, hue `[0, 360]`, or `[0, 100]`), allowing for the specified `epsilon` tolerance.
+
+---
+
+## `toGamut()` [#to-gamut]
+
+Fits out-of-bounds color coordinates into a target physical gamut space using a specified mapping algorithm, returning the fitted coordinates back in the original color model.
+
+```ts
+import { toGamut } from "saturon/gamut";
+
+const outOfBounds = { model: "rgb", coords: [300, -20, 10, 1] };
+
+// Map coordinates into sRGB gamut using CSS gamut mapping
+const fittedCoords = toGamut(outOfBounds, "srgb", { method: "css-gamut-map" });
+console.log(fittedCoords); // [255, 0, 10, 1] (mapped)
+```
+
+### Signature
+
+```ts
+function toGamut(color: ColorData, gamut: ColorSpace, options?: ToGamutOptions): number[];
+```
+
+### Parameters
+
+| Parameter | Type             | Description                                                                   |
+| --------- | ---------------- | ----------------------------------------------------------------------------- |
+| `color`   | `ColorData`      | The raw color data object (`{ model, coords }`) to fit.                       |
+| `gamut`   | `ColorSpace`     | The target physical gamut space to constrain coordinates to (e.g., `"srgb"`). |
+| `options` | `ToGamutOptions` | Optional configuration for the fitting strategy.                              |
+
+### Options (`ToGamutOptions`)
+
+| Option   | Type        | Default               | Description                                                                                              |
+| -------- | ----------- | --------------------- | -------------------------------------------------------------------------------------------------------- |
+| `method` | `FitMethod` | `config.defaults.fit` | The gamut mapping strategy to apply (e.g., `"clip"`, `"css-gamut-map"`, `"chrome-reduction"`, `"none"`). |
+
+### Returns
+
+A `number[]` array containing the fitted coordinate values, converted back into the input color's original model space.
+
+### Behavior
+
+1. Verifies that the specified target `gamut` exists within `colorSpaces`.
+2. Converts the source color into the destination gamut model.
+3. Passes the converted color data to `toArray()` with the chosen fitting strategy (`fit`) to clamp or map coordinates within boundaries.
+4. Converts the fitted coordinates back into the original input color's model and returns the coordinate array.
+
+---
+
+## Usage Example
+
+```ts
+import { inGamut, toGamut } from "saturon/gamut";
+
+const p3Color = { model: "display-p3", coords: [1, 0, 0, 1] };
+
+// Check if the P3 color fits within sRGB gamut
+if (!inGamut(p3Color, "srgb")) {
+    // Map to sRGB boundaries using clipping
+    const clippedCoords = toGamut(p3Color, "srgb", { method: "clip" });
+
+    // Map using standard CSS gamut mapping algorithm
+    const cssMappedCoords = toGamut(p3Color, "srgb", { method: "css-gamut-map" });
+}
+```
+
+## Errors
+
+- Throws an `Error` if the specified `gamut` is not a registered color space in `colorSpaces`.

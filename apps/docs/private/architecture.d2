@@ -1,0 +1,126 @@
+classes: {
+    registry: {
+        shape: hexagon
+        style: {
+            fill: "#0f172a"
+            stroke: "#38bdf8"
+            stroke-width: 2
+            font-color: "#f8fafc"
+            border-radius: 5
+        }
+    }
+    core: {
+        style: {
+            fill: "#eff6ff"
+            stroke: "#2563eb"
+            stroke-width: 2
+            font-color: "#1e3a8a"
+        }
+    }
+    engine: {
+        shape: circle
+        style: {
+            fill: "#fff7ed"
+            stroke: "#ea580c"
+            stroke-width: 2
+            font-color: "#7c2d12"
+        }
+    }
+    syntax: {
+        style: {
+            fill: "#f0fdf4"
+            stroke: "#16a34a"
+            stroke-width: 2
+            font-color: "#14532d"
+        }
+    }
+    output: {
+        shape: document
+        style: {
+            fill: "#faf5ff"
+            stroke: "#9333ea"
+            stroke-width: 2
+            font-color: "#581c87"
+        }
+    }
+}
+
+Registry: "Registry (Plugin API)\nRegisters all engine components" {
+    class: registry
+}
+
+Formatters: "Formatters (Serializers)\nRules for converting coords to strings" {
+    class: output
+}
+
+Core: "Core Definitions" {
+    Spaces: "Spaces (Gamut Boundaries)\nBase definitions e.g., srgb, display-p3" {
+        class: core
+    }
+    Models: "Models (Coordinate Systems)\nFirst-class types e.g., rgb, hsl, oklch" {
+        class: core
+    }
+}
+
+SyntaxTools: "Syntax & Validation Utilities" {
+    Lexer: "Lexer (String Tokenizer)\nChops raw strings into a token stream" {
+        class: syntax
+    }
+    Grammar: "Grammar (Structural Blueprints)\nDefines CSS rules e.g., <color-mix()>" {
+        class: syntax
+    }
+    Validators: "Validators (Terminal Rules)\nRegEx checks e.g., <number>, <angle>" {
+        class: syntax
+    }
+    Shortcuts: "Shortcuts (Fast Lane)\n1-step string-to-ColorData bypass" {
+        class: syntax
+    }
+}
+
+SaturonEngine: "Saturon Core Pipelines (Data Lifecycle)" {
+    Parsing: "Parsing Pipeline\nBuilds AST & Evaluates to ColorData" {
+        class: engine
+    }
+    Conversion: "Conversion Pipeline\nBFS graph pathfinding via bridge spaces" {
+        class: engine
+    }
+    Gamut: "Gamut Mapping\nFits out-of-bound coords to target" {
+        class: engine
+    }
+    Formatting: "Formatting Pipeline\nConstructs the final CSS output string" {
+        class: engine
+    }
+}
+
+Registry -> Core.Spaces: injects definitions
+Registry -> Core.Models: injects definitions
+Registry -> SyntaxTools.Grammar: injects custom rules
+Registry -> SyntaxTools.Shortcuts: injects
+Registry -> Formatters: injects
+
+Core.Spaces -> Core.Models: promoted on startup
+Core.Spaces -> SaturonEngine.Gamut: provides boundary constraints
+
+Core.Models -> SaturonEngine.Conversion: builds bidirectional graph
+Core.Models -> SyntaxTools.Grammar: auto-generates dynamic rules
+Core.Models -> Formatters: creates corresponding
+
+SyntaxTools.Grammar -> SyntaxTools.Validators: delegates missing terminal leaves {
+    style.stroke-dash: 3
+}
+SyntaxTools.Lexer -> SaturonEngine.Parsing: feeds raw token stream
+SyntaxTools.Grammar -> SaturonEngine.Parsing: provides tree matching logic
+SyntaxTools.Validators -> SaturonEngine.Parsing: verifies terminal tokens
+SyntaxTools.Shortcuts -> SaturonEngine.Parsing: bypasses AST generation entirely
+
+SaturonEngine.Parsing -> SaturonEngine.Conversion: passes normalized ColorData {
+    style.stroke-width: 4
+}
+SaturonEngine.Conversion -> SaturonEngine.Gamut: passes target coords {
+    style.stroke-width: 4
+}
+SaturonEngine.Gamut -> SaturonEngine.Formatting: passes fitted coords {
+    style.stroke-width: 4
+}
+
+Formatters -> SaturonEngine.Formatting: provides serialization logic

@@ -1,0 +1,33 @@
+---
+title: API Reference Overview
+description: Discover the complete API surface of Saturon, including the primary Color class and entry-point utility modules.
+---
+
+import { Palette, Boxes } from "lucide-react";
+
+In Saturon, the main entry point for object-oriented workflows is the `Color` class, exported directly from the primary package.
+
+```ts
+import { Color } from "saturon";
+```
+
+For applications with strict bundle-size requirements or functional programming paradigms, Saturon also offers standalone, tree-shakable utilities. These pure functions can be imported individually from dedicated subpaths to ensure you only bundle the exact features you use.
+
+<Cards>
+    <Card 
+        title="Color Class" 
+        href="/docs/api/color-class"
+        icon={<Palette className="text-purple-500 dark:text-purple-400" />}
+    >
+        The core, feature-rich class for instantiating, converting, mutating, and manipulating colors in Saturon.
+    </Card>
+
+    <Card
+        title="Utility Subpaths"
+        href="/docs/api/subpaths"
+        icon={<Boxes className="text-amber-500 dark:text-amber-400" />}
+    >
+        Standalone, tree-shakable utility modules for direct functional workflows in Saturon.
+    </Card>
+
+</Cards>

@@ -1,0 +1,13 @@
+{
+    "title": "Guides & Tutorials",
+    "icon": "BookOpen",
+    "pages": [
+        "creating-colors",
+        "working-with-colors",
+        "color-mixing",
+        "accessibility-checks",
+        "gamut-mapping",
+        "registry",
+        "tree-shakability"
+    ]
+}

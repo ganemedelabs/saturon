@@ -1,0 +1,79 @@
+---
+title: Adapt System Colors to Environment
+description: Dynamically probe and sync native OS system colors across light and dark modes into Saturon.
+---
+
+## Implementation
+
+```ts title="src/utils.ts"
+import { configure } from "saturon/config";
+import { SystemColor, systemColors } from "saturon/systemColors";
+import { parse } from "saturon/parse";
+import { convert } from "saturon/convert";
+import { toArray } from "saturon/toArray";
+
+/**
+ * Probes native browser/OS system colors for light and dark schemes
+ * and reconfigures Saturon with the resolved RGB coordinates.
+ */
+export function updateSystemColorsFromEnvironment() {
+    if (typeof window === "undefined" || typeof document === "undefined") {
+        return null;
+    }
+
+    const keys = Object.keys(systemColors) as SystemColor[];
+
+    const readThemeColors = (isDark: boolean): Record<string, number[]> => {
+        const el = document.createElement("div");
+        el.style.display = "none";
+        el.style.colorScheme = isDark ? "dark" : "light";
+
+        document.body.appendChild(el);
+
+        const result: Record<string, number[]> = {};
+
+        for (const key of keys) {
+            el.style.backgroundColor = key;
+
+            const computed = window.getComputedStyle(el).backgroundColor;
+
+            try {
+                const parsed = parse(computed);
+                const coords = convert(parsed, "rgb");
+                const [r, g, b] = toArray({ model: "rgb", coords });
+                result[key] = [r, g, b];
+            } catch {
+                // Fallback to default Saturon system color values if parsing fails
+                result[key] = isDark ? systemColors[key][1] : systemColors[key][0];
+            }
+        }
+
+        document.body.removeChild(el);
+        return result;
+    };
+
+    const lightMap = readThemeColors(false);
+    const darkMap = readThemeColors(true);
+
+    const updatedSystemColors: Record<string, number[][]> = {};
+
+    for (const key of keys) {
+        updatedSystemColors[key] = [lightMap[key] ?? systemColors[key][0], darkMap[key] ?? systemColors[key][1]];
+    }
+
+    configure({ systemColors: updatedSystemColors });
+
+    return updatedSystemColors;
+}
+```
+
+## Usage
+
+```ts title="src/index.ts"
+import { updateSystemColorsFromEnvironment } from "./utils";
+
+document.addEventListener("DOMContentLoaded", () => {
+    updateSystemColorsFromEnvironment();
+    console.log("Saturon system colors initialized.");
+});
+```

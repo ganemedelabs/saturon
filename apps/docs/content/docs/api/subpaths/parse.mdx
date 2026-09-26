@@ -1,0 +1,62 @@
+---
+title: saturon/parse
+description: Parse CSS color strings, named colors, and shortcuts into raw color data objects.
+---
+
+The `saturon/parse` subpath exposes the standalone `parse()` function, which converts valid CSS color strings, named color keywords, and complex functions into raw `ColorData` objects (`{ model, coords }`).
+
+## `parse()` [#parse]
+
+Parses any supported color string representation by evaluating high-speed shortcuts, tokenizing the input, validating the token tree, and returning the resolved model name and coordinate array.
+
+```ts
+import { parse } from "saturon/parse";
+
+const color = parse("hsl(210deg 100% 50% / 0.8)");
+console.log(color); // { model: "hsl", coords: [210, 100, 50, 0.8] }
+```
+
+## Signature
+
+```ts
+function parse(color: NamedColor | string): ColorData;
+```
+
+### Parameters
+
+| Parameter | Type                   | Description                                                    |
+| --------- | ---------------------- | -------------------------------------------------------------- |
+| `color`   | `NamedColor \| string` | A valid CSS color string, or named color keyword to be parsed. |
+
+### Returns
+
+A `ColorData` object containing the identified color model key and an array of numeric coordinates.
+
+## Behavior
+
+1. Checks the input against optimized shortcut handlers (`shortcuts`) for quick parsing of common formats like named colors and hex colors.
+2. Breaks complex CSS color strings and functional syntax (e.g., `color-mix()`, relative color syntax) into a structured token stream via `tokenize()`.
+3. Builds and validates the syntax tree using `validateTokens()`.
+4. Resolves the parsed AST via `parseNode()` to derive the final `{ model, coords }` structure.
+
+## Usage Example
+
+```ts
+import { parse } from "saturon/parse";
+
+// Parse a standard hex string
+const hex = parse("#ff5733");
+// { model: "rgb", coords: [255, 87, 51, 1] }
+
+// Parse modern CSS color syntax
+const oklch = parse("oklch(0.6 0.25 140 / 0.5)");
+// { model: "oklch", coords: [0.6, 0.25, 140, 0.5] }
+
+// Parse CSS color keywords
+const named = parse("rebeccapurple");
+// { model: "rgb", coords: [102, 51, 153, 1] }
+```
+
+## Errors
+
+- Throws an `Error` wrapping the root cause if the input string fails tokenization, tree validation, or node resolution.

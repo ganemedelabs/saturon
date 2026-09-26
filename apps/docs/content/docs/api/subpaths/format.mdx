@@ -1,0 +1,82 @@
+---
+title: saturon/format
+description: Serialize raw color data into formatted, CSS-compliant strings and output specifications.
+---
+
+The `saturon/format` subpath provides the `format()` function for serializing raw `ColorData` objects into formatted, CSS-compliant strings or custom string specifications across different output targets.
+
+## `format()` [#format]
+
+Converts a raw `ColorData` object into a target output string format (e.g., `"hex"`, `"rgb"`, `"hsl"`, `"oklch"`), with options for controlling syntax style, gamut fitting, precision, and unit suffixes.
+
+```ts
+import { format } from "saturon/format";
+
+const color = { model: "rgb", coords: [255, 87, 51, 0.8] };
+
+const cssString = format(color, "hsl", { legacy: true });
+console.log(cssString); // "hsla(11, 100%, 60%, 0.8)"
+```
+
+## Signature
+
+```ts
+function format(color: ColorData, to: OutputType | (string & {}), options?: FormattingOptions): string | undefined;
+```
+
+### Parameters
+
+| Parameter | Type                          | Description                                                                                          |
+| --------- | ----------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `color`   | `ColorData`                   | The raw color data object (`{ model, coords }`) to format.                                           |
+| `to`      | `OutputType \| (string & {})` | The target output format identifier (e.g., `"hex"`, `"rgb"`, `"hsl"`, `"lab"`, `"oklch"`, `"srgb"`). |
+| `options` | `FormattingOptions`           | Optional configuration settings controlling string generation, precision, and space representation.  |
+
+### Options (`FormattingOptions`)
+
+| Option      | Type        | Default               | Description                                                                                                 |
+| ----------- | ----------- | --------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `legacy`    | `boolean`   | `false`               | When `true`, outputs comma-separated legacy syntax (e.g., `rgba(255, 0, 0, 1)` instead of space-separated). |
+| `fit`       | `FitMethod` | `config.defaults.fit` | The gamut fitting strategy to apply to out-of-bounds coordinates prior to string serialization.             |
+| `precision` | `number`    | `null`                | Explicit decimal place rounding limit for component values and alpha transparency.                          |
+| `units`     | `boolean`   | `false`               | When `true`, explicitly appends unit identifiers (e.g., `%`, `deg`) to applicable color components.         |
+
+### Returns
+
+A `string` containing the formatted CSS color representation.
+
+## Behavior
+
+1. Verifies that the requested target format identifier `to` exists in the registered `formatters` map.
+2. If the target format differs from `color.model`, the input coordinates are converted to the target model (or intermediate bridge space) using normalized arrays via `toNormArray()`.
+3. Automatically applies precision rules to the alpha channel using the target model's default index or user-specified precision setting.
+4. Invokes the formatter function with the calculated coordinates and options array (`legacy`, `fit`, `precision`, `units`).
+
+## Usage Example
+
+```ts
+import { format } from "saturon/format";
+
+const oklchColor = { model: "oklch", coords: [0.6, 0.25, 140, 1] };
+
+// Format to modern CSS Hex
+const hex = format(oklchColor, "hex-color");
+// "#009f00"
+
+// Format to modern space-separated RGB syntax
+const rgbModern = format(oklchColor, "rgb");
+// "rgb(0 159 0)"
+
+// Format to legacy comma-separated HSL syntax with explicit precision
+const hslLegacy = format(oklchColor, "hsl", { legacy: true, precision: 1 });
+// "hsl(115.5, 100%, 19.7%)"
+
+// Format with units explicitly enabled
+const hslUnits = format(oklchColor, "hsl", { units: true });
+// "hsl(116deg 100% 20%)"
+```
+
+## Errors
+
+- Throws `Error` if the requested output format isn't registered.
+- Throws `Error` if the specified output format is missing required conversion bridge properties.

@@ -1,0 +1,210 @@
+---
+title: Gamut Mapping & Out-of-Gamut Handling
+description: Safely handle colors that exceed display capabilities using Saturon's inGamut(), within(), fit(), and format options.
+---
+
+Colors defined in wide-gamut spaces (like Display P3 or Rec.2020) often contain values that standard sRGB monitors cannot display. When forced onto a standard screen without correction, these colors are abruptly clipped, resulting in color banding and hue shifts.
+
+Saturon gives you fine-grained control over how colors are mapped and constrained, offering four distinct mechanisms depending on where you are in your color pipeline:
+
+| Tool          | Purpose              | Best Used For                                                   |
+| :------------ | :------------------- | :-------------------------------------------------------------- |
+| `inGamut()`   | Detection            | Validating tokens, testing, or triggering fallbacks.            |
+| `fit()`       | Source Normalization | Fixing invalid raw coordinates in the _current_ color space.    |
+| `within()`    | Target Gamut Mapping | Forcing a color to safely fit inside a _different_ color space. |
+| `to({ fit })` | Safe Output          | Applying gamut mapping right at the final formatting step.      |
+
+---
+
+## 1. Detect Out-of-Gamut Colors [#in-gamut]
+
+The `inGamut()` method checks whether a color can be accurately represented in a target color space without losing information. It uses a tiny tolerance (`epsilon`) to account for floating-point math inaccuracies.
+
+### Signature
+
+```ts
+inGamut(gamut: ColorSpace | string, options?: { epsilon?: number }): boolean
+```
+
+### Example
+
+```ts
+import { Color } from "saturon";
+
+const p3Red = Color.from("color(display-p3 1 0 0)");
+const sRGBRed = Color.from("rgb(255 0 0)");
+
+console.log(p3Red.inGamut("srgb")); // false (Out of range for standard monitors)
+console.log(sRGBRed.inGamut("srgb")); // true
+console.log(p3Red.inGamut("display-p3")); // true
+```
+
+---
+
+## 2. Normalize in the Current Space [#fit]
+
+The `fit()` method evaluates the color in its current color space and clamps or maps the values to ensure they respect the physical boundaries of that space.
+
+Always use this method _before_ converting a procedurally generated or manually constructed color to a new space, otherwise the target space conversion might silently hide or distort invalid source values.
+
+### Signature
+
+```ts
+fit(options?: { method?: FitMethod; precision?: number }): Color
+```
+
+### Example: The "Ghost Color" Problem
+
+If you manually create a color with coordinates that fall outside the space's valid range, converting it directly can yield unexpected results.
+
+```ts
+// 'a' is -0.5, but Oklab 'a' typically bottoms out around -0.4
+const oklab = new Color("oklab", [0.5, -0.5, 0.2]);
+
+// ❌ UNSAFE: Converts invalid Oklab directly to P3
+const bad = oklab.to("display-p3", { fit: "clip" });
+console.log(bad); // color(display-p3 0 0.60774 0)
+
+// ✅ SAFE: Normalizes the Oklab color to reality FIRST, then converts
+const good = oklab.fit({ method: "clip" }).to("display-p3");
+console.log(good); // color(display-p3 0 0.57416 0)
+```
+
+---
+
+## 3. Map to a Target Gamut [#within]
+
+The `within()` method safely compresses a color so that it fits inside the gamut of a different color space, returning a new `Color` instance. This is ideal when you need to store or manipulate a safe fallback color.
+
+### Signature
+
+```ts
+within(gamut: ColorSpace, options?: { method?: FitMethod }): Color
+```
+
+### Available Fit Methods
+
+Saturon implements the W3C CSS Color 4 specifications for gamut mapping:
+
+| Method               | Behavior                                                                                                                 |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `"css-gamut-map"`    | (Default) The W3C CSS Color 4 perceptual mapping algorithm. Smoothly reduces chroma in OKLCh while preserving lightness. |
+| `"chroma-reduction"` | Iteratively reduces chroma with local OKLCh clipping. Good accuracy, but slightly heavier computationally.               |
+| `"clip"`             | Brutally clamps coordinate values to boundaries. Extremely fast, but easily causes noticeable hue shifts.                |
+
+### Example
+
+```ts
+const wide = Color.from("color(display-p3 1 0.8 0)");
+
+// Brutal clipping (shifts hue slightly)
+console.log(wide.within("srgb", { method: "clip" }).to("rgb"));
+// rgb(255 201 0)
+
+// Perceptual mapping (preserves intent better)
+console.log(wide.within("srgb", { method: "css-gamut-map" }).to("rgb"));
+// rgb(255 205 46)
+```
+
+---
+
+## 4. Safe Output Formatting [#formatting]
+
+If you only need to ensure the final CSS string or data array is safe, you can apply gamut mapping directly during formatting.
+
+The `fit` option can be passed to:
+
+- `to(type, { fit })`
+- `toString({ fit })`
+- `toArray({ fit })`
+- `toObject({ fit })`
+
+### Example
+
+```ts
+const p3Color = Color.from("color(display-p3 1 0 0)");
+
+// ❌ Unsafe: Emits invalid RGB values for a standard screen
+console.log(p3Color.to("rgb", { fit: "none" }));
+// rgb(279 -58 -38)
+
+// ✅ Safe: Maps perceptually into sRGB bounds
+console.log(p3Color.to("rgb", { fit: "css-gamut-map" }));
+// rgb(255 52 40)
+```
+
+---
+
+## Global Configuration [#config]
+
+If you want to enforce a specific gamut mapping algorithm globally across your entire application, you can set it in Saturon's configuration:
+
+```ts
+import { configure } from "saturon/utils";
+
+// Make all formatters and within() calls use W3C perceptual mapping by default
+configure({
+    defaults: { fit: "css-gamut-map" },
+});
+
+const p3Color = Color.from("color(display-p3 1 0 0)");
+console.log(p3Color.to("rgb")); // Automatically fitted using css-gamut-map
+```
+
+---
+
+## Practical Workflows [#workflows]
+
+Here is how these methods combine in real-world engineering scenarios.
+
+### 1. Generating Safe Design Tokens
+
+When exporting a theme file, you want to ensure all source colors are physically valid, and safely compress any wide-gamut colors down to sRGB for legacy systems.
+
+```ts
+function exportLegacyToken(color: Color): string {
+    // 1. Ensure the source color isn't physically impossible
+    let safeColor = color.fit();
+
+    // 2. Map wide colors gracefully into standard RGB
+    if (!safeColor.inGamut("srgb")) {
+        safeColor = safeColor.within("srgb", { method: "css-gamut-map" });
+    }
+
+    // 3. Export safely
+    return safeColor.to("hex-color");
+}
+```
+
+### 2. Progressive Enhancement in UI
+
+Serve the wide-gamut color to modern devices, but calculate an accurate fallback for older screens dynamically.
+
+```ts
+const brandColor = Color.from("color(display-p3 0.2 0.8 1)").fit();
+
+const prefersP3 = window.matchMedia("(color-gamut: p3)").matches;
+
+// If the screen supports P3, use the raw color.
+// Otherwise, perceptually map it down to sRGB.
+const finalDisplayColor = prefersP3 ? brandColor : brandColor.within("srgb", { method: "css-gamut-map" });
+
+document.body.style.backgroundColor = finalDisplayColor.to("rgb");
+```
+
+### 3. CI/CD Unit Testing
+
+Prevent unsafe brand colors from being merged into your design system repository.
+
+```ts
+test("all brand colors must be sRGB-safe", () => {
+    const rawTokens = ["#ff5733", "#33b5e5", "color(display-p3 1 0 0)"];
+
+    const colors = rawTokens.map(Color.from).map((c) => c.fit());
+
+    colors.forEach((color) => {
+        // Enforce that even after mapping, the result is technically valid
+        expect(color.within("srgb").inGamut("srgb")).toBe(true);
+    });
+});
+```

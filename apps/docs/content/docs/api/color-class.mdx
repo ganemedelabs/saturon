@@ -1,0 +1,436 @@
+---
+title: Color Class
+description: The core, feature-rich class for instantiating, converting, mutating, and manipulating colors in Saturon.
+---
+
+The `Color` class is the primary interface for object-oriented workflows in Saturon. It encapsulates a color's model and internal coordinates, providing a chainable and developer-friendly API for color science, formatting, and manipulation.
+
+## Constructor [#constructor]
+
+Instantiates a new `Color` object directly from a registered color model name and an array of numeric coordinates.
+
+```ts
+const red = new Color("rgb", [255, 0, 0]);
+
+// Instance Properties
+console.log(red.model); // "rgb"
+console.log(red.coords); // [255, 0, 0, 1]
+```
+
+When called, the constructor executes the following logic:
+
+1. Verifies that the provided `model` exists within the engine's registered color models (`colorModels`); throws an error if unsupported.
+2. Ensures the `coords` array contains exactly 3 or 4 elements.
+3. Clones the coordinate array and automatically appends a default alpha channel (`1`) if a 3-element array is provided.
+
+<Callout type="warn" title="Note on accessing coords property">
+
+    - The `coords` property can technically accept any JavaScript `number` values — including `NaN`, `Infinity`, or
+    `-Infinity`. When accessed directly using `coords`, these values are returned exactly as provided. For normalized and CSS-safe
+    output, use the `toArray()` method instead. It converts special numeric values according to CSS conventions:
+        - `NaN` → treated as the CSS keyword `none` (converted to 0)
+        - `Infinity` → treated as `calc(infinity)` (converted to the maximum representable value in the model)
+        - `-Infinity` → treated as `calc(-infinity)` (converted to the minimum representable value in the model)
+
+    - If no `coords` are provided, Saturon initializes the color with all zero channel values (transparent black). This ensures a valid color object (e.g., black for `rgb`, or the zero-point for other models). This is useful for placeholders, programmatically generating colors, or avoiding `null`/`undefined` checks.
+
+</Callout>
+
+---
+
+## Static `Color.config` [#config]
+
+A static getter that returns the global configuration settings for the engine (such as default fitting methods or serialization precision).
+
+<Callout type="info">
+    This wraps the engine's central configuration manager. [See the `saturon/config`
+    documentation](/docs/api/subpaths/config#config) to learn more about configuration.
+</Callout>
+
+---
+
+## Static `Color.configure()` [#configure]
+
+Merges a partial runtime configuration into the global configuration object.
+
+```ts
+Color.configure({ defaults: { fit: "css-gamut-map" } });
+```
+
+<Callout type="info">
+    This is a wrapper around the standalone `configure()` function from `"saturon/config"`. [See `configure()`
+    documentation](/docs/api/subpaths/config#configure) for details.
+</Callout>
+
+---
+
+## Static `Color.use()` [#use]
+
+Registers one or more plugins to extend the `Color` class with custom methods or properties at runtime.
+
+When invoked, it validates that all arguments are functions, skips any plugins that have already been executed, passes the static `Color` class reference to each new plugin function, and tracks registered plugins in a global set to prevent duplicate initialization.
+
+<Callout type="idea" title="Plugin Recipe">
+    Find out how to [create and register plugins](/docs/recipes/register-plugins) to enhance Saturon's functionality.
+</Callout>
+
+---
+
+## Static `Color.register()` [#register]
+
+Injects custom color models, formatters, syntax rules, or gamut spaces into the core engine.
+
+<Callout type="info">
+    This is a wrapper around the standalone `register()` function from `"saturon/registry"`. [See the `register()`
+    documentation](/docs/api/subpaths/registry#register) for details.
+</Callout>
+
+---
+
+## Static `Color.unregister()` [#unregister]
+
+Removes previously registered custom color models, formatters, syntax rules, or gamut spaces from the core engine.
+
+<Callout type="info">
+    This is a wrapper around the standalone `unregister()` function from `"saturon/registry"`. [See `unregister()`
+    documentation](/docs/api/subpaths/registry#unregister) for details.
+</Callout>
+
+---
+
+## Static `Color.from()` [#from]
+
+Parses any valid CSS color string, named color, or complex function (like `color-mix()` or relative colors) into a `Color` instance.
+
+<Callout type="info">
+    This is a wrapper around the standalone `parse()` function from `"saturon/parse"`. [See `parse()`
+    documentation](/docs/api/subpaths/parse) for details.
+</Callout>
+
+---
+
+## Static `Color.isValid()` [#isValid]
+
+A static helper to quickly determine if a string is a valid, parseable CSS color without throwing an error or instantiating a class.
+
+```ts
+const valid = Color.isValid("rgb(255 32 98)");
+const invalid = Color.isValid("rgb(255deg 32 98)");
+console.log(valid); // true
+console.log(invalid); // false
+```
+
+<Callout type="info">
+    This is a wrapper around the standalone `isValid()` function from `"saturon/isValid"`. [See `isValid()`
+    documentation](/docs/api/subpaths/is-valid) for details.
+</Callout>
+
+---
+
+## Static `Color.get()` [#get]
+
+Retrieves a list of registered items (like available color models or gamut spaces) from the engine's registry.
+
+```ts
+const fitMethods = Color.get("fit-methods");
+console.log(fitMethods); // ["none", "clip", "chrome-reduction", "css-gamut-map"]
+```
+
+<Callout type="info">
+    This is a wrapper around the standalone `get()` function from `"saturon/getters"`. [See `get()`
+    documentation](/docs/api/subpaths/getters#get) for details.
+</Callout>
+
+---
+
+## Static `Color.random()` [#random]
+
+Generates a random `Color` instance based on specific criteria or constraints (e.g., restricted to a certain model or coordinate range).
+
+```ts
+Color.random({ model: "lab", limits: { alpha: [1, 1] } });
+```
+
+<Callout type="info">
+    This is a wrapper around the standalone `random()` function from `"saturon/random"`. [See `random()`
+    documentation](/docs/api/subpaths/random) for details.
+</Callout>
+
+---
+
+## Static `Color.mix()` [#mix]
+
+Statically mixes multiple colors together by specified percentages, replicating the exact W3C behavior of the CSS `color-mix()` function.
+
+```ts
+const red = Color.from("red");
+const blue = Color.from("blue");
+const mixed = Color.mix([{ color: red, percentage: 0.3 }, { color: blue }], {
+    in: "oklch",
+    hue: "decreasing",
+});
+console.log(mixed); // result is equivalent to parsing the string "color-mix(in oklch decreasing hue, red 30%, blue)"
+```
+
+<Callout type="info">
+    This is a wrapper around the standalone `mix()` function from `"saturon/colorMix"` to get the needed coordinates for
+    the returned `Color` instance. [See `mix()` documentation](/docs/api/subpaths/color-mix#mix) for details.
+</Callout>
+
+---
+
+## Static `Color.interpolate()` [#interpolate]
+
+```ts
+const red = Color.from("red");
+const yellow = Color.from("yellow");
+const blue = Color.from("blue");
+
+// Create an interpolator across multiple colors in Oklab space
+const palette = Color.interpolate([red, yellow, blue], { in: "oklab" });
+
+// Sample colors along the multi-stop gradient (t from 0 to 1)
+const start = palette(0); // Returns Color instance for red
+const mid = palette(0.5); // Returns Color instance for yellow
+const end = palette(1); // Returns Color instance for blue
+```
+
+Returns a function that interpolates across an array of colors. The returned function accepts a progress value `t` (0 to 1) and returns the interpolated `Color`.
+
+<Callout type="info">
+    This is a wrapper around the standalone `interpolate()` function from `"saturon/interpolate"` to get the needed
+    coordinates for the returned `Color` instance. [See `interpolate()` documentation](/docs/api/subpaths/interpolate)
+    for details.
+</Callout>
+
+---
+
+## Static `Color.scale()` [#scale]
+
+Generates an array of `Color` instances (a palette) by interpolating evenly across the provided colors in a specific number of steps.
+
+---
+
+## Static `Color.contrast()` [#contrast]
+
+Calculates the WCAG 2.1 contrast ratio between two `Color` instances. Returns a value from 1 to 21.
+
+```ts
+const white = Color.from("white");
+const black = Color.from("black");
+const contrast = Color.contrast(white, black);
+console.log(contrast); // ~21
+```
+
+<Callout type="info">
+    This is a wrapper around the standalone `contrast()` function from `"saturon/contrast"`. [See `contrast()`
+    documentation](/docs/api/subpaths/contrast) for details.
+</Callout>
+
+---
+
+## Static `Color.deltaE76()` [#delta-e76]
+
+Calculates the basic CIE 1976 color difference (Euclidean distance in Lab space). 0 = identical, ~1 = Just Noticeable Difference (JND).
+
+<Callout type="info">
+    This is a wrapper around the standalone `deltaE76()` function from `"saturon/deltaE"`. [See `deltaE76()`
+    documentation](/docs/api/subpaths/delta-e#delta-e76) for details.
+</Callout>
+
+---
+
+## Static `Color.deltaE94()` [#delta-e94]
+
+Calculates the CIE 1994 color difference, addressing perceptual non-uniformities with weighted improvements over standard Lab space.
+
+<Callout type="info">
+    This is a wrapper around the standalone `deltaE94()` function from `"saturon/deltaE"`. [See `deltaE94()`
+    documentation](/docs/api/subpaths/delta-e#delta-e94) for details.
+</Callout>
+
+---
+
+## Static `Color.deltaE2000()` [#delta-e2000]
+
+Calculates the CIEDE2000 color difference, the most accurate CIE standard for addressing complex perceptual interactions.
+
+<Callout type="info">
+    This is a wrapper around the standalone `deltaE2000()` function from `"saturon/deltaE"`. [See `deltaE2000()`
+    documentation](/docs/api/subpaths/delta-e#delta-e2000) for details.
+</Callout>
+
+---
+
+## Static `Color.deltaEOK()` [#delta-eok]
+
+Calculates the OKLab color difference. Modern, highly accurate, and based on the perceptually uniform OKLab space. Scaled to match standard Delta E ranges.
+
+<Callout type="info">
+    This is a wrapper around the standalone `deltaEOK()` function from `"saturon/deltaE"`. [See `deltaEOK()`
+    documentation](/docs/api/subpaths/delta-e#delta-eok) for details.
+</Callout>
+
+---
+
+## `Color.prototype.to()` [#to]
+
+Converts and serializes the color into a specific output format (e.g., `hex-color`, `rgb`, `oklab`).
+
+```ts
+// Convert to different formats
+const color = Color.from("hsl(50 100% 30%)");
+console.log(color.to("rgb")); // rgb(153 128 0)
+console.log(color.to("hex-color")); // #998000
+
+// Use legacy syntax
+console.log(color.to("rgb", { legacy: true })); // rgb(153, 128, 0)
+
+// Constrain to sRGB gamut with different fit methods
+const wideColor = Color.from("color(display-p3 1 0 0)");
+console.log(wideColor.to("rgb", { fit: "clip" })); // rgb(255 0 0)
+console.log(wideColor.to("rgb", { fit: "css-gamut-map" })); // rgb(255 0 0)
+
+// Include units and custom precision
+console.log(color.to("hsl", { units: true, precision: 2 })); // hsl(50deg 100% 30%)
+```
+
+<Callout type="info">
+    This is a wrapper around the standalone `format()` function from `"saturon/format"`. [See `format()`
+    documentation](/docs/api/subpaths/format) for details.
+</Callout>
+
+---
+
+## `Color.prototype.in()` [#in]
+
+Converts the color's internal coordinates to a target color model.
+
+```ts
+const rgb = new Color("rgb", [255, 87, 51]);
+const hsl = rgb.in("hsl");
+console.log({ ...hsl }); // { model: "hsl", coords: [15, 100, 60, 1] }
+```
+
+<Callout type="info">
+    This method utilizes the standalone `convert()` function from `"saturon/convert"` to get the needed coordinates for
+    the returned `Color` instance. [See `convert()` documentation](/docs/api/subpaths/convert) for details.
+</Callout>
+
+---
+
+## `Color.prototype.toArray()` [#to-array]
+
+Returns the color as a raw numeric array of component values, optionally normalized and fitted.
+
+```ts
+const color = new Color("rgb", [255, 0, 0]);
+const arr = color.toArray();
+console.log(arr); // [255, 0, 0, 1]
+```
+
+<Callout type="info">
+    This is a wrapper around the standalone `toArray()` function from `"saturon/toArray"`. [See `toArray()`
+    documentation](/docs/api/subpaths/to-array) for details.
+</Callout>
+
+---
+
+## `Color.prototype.toObject()` [#to-object]
+
+Returns the color as an object mapping each component to its numeric value. Accepts options for precision and gamut fitting.
+
+```ts
+const color = new Color("rgb", [255, 0, 0]);
+const obj = color.toObject();
+console.log(obj); // { r: 255, g: 0, b: 0, alpha: 1 }
+```
+
+<Callout type="info" title="Note">
+    1. This is a wrapper around the standalone `toObject()` function from `"saturon/toObject"`. [See `toObject()`
+    documentation](/docs/api/subpaths/to-object) for details.
+    2. `toObject()` internally relies on `toArray()` to
+    retrieve component values. This means it inherits `toArray()`'s robust handling of special numeric cases, such as
+    `NaN` and `Infinity`, ensuring consistent and reliable output.
+
+</Callout>
+
+---
+
+## `Color.prototype.toString()` [#to-string]
+
+Formats the color as a CSS-compliant string in its current internal model. Accepts options for precision, legacy syntax, and units.
+
+---
+
+## `Color.prototype.with()` [#with]
+
+Creates a new `Color` instance with modified component values. It supports several flexible update patterns:
+
+```ts
+// Direct object
+color.with({ l: 50 });
+
+// Functional component
+color.with({ r: (r) => r * 2 });
+
+// Functional bulk
+color.with(({ r, g, b }) => ({ r: r * 0.5 }));
+
+// Array replacement
+color.with([0.5, 0.6, 0.7, 1]);
+
+// Functional array
+color.with(({ r, g, b }) => [r, g, b, 0.5]);
+```
+
+<Callout type="info">
+    This is a wrapper around the standalone `updateColor()` function from `"saturon/updateColor"` to get the needed
+    coordinates. [See `updateColor()` documentation](/docs/api/subpaths/update-color) for details.
+</Callout>
+
+---
+
+## `Color.prototype.fit()` [#fit]
+
+Creates a new `Color` instance with its coordinates strictly fitted to its own model's standard gamut boundaries using the specified mapping method.
+
+```ts
+const extreme = new Color("rgb", [300, 0, 0]);
+const fitted = extreme.fit();
+console.log(fitted.coords); // [255, 0, 0, 1]
+```
+
+---
+
+## `Color.prototype.within()` [#within]
+
+Fits out-of-bounds coordinates to a target physical gamut space.
+
+```ts
+const extreme = new Color("rgb", [300, 0, 0]);
+const fitted = extreme.within("srgb");
+console.log(fitted.coords); // [255, 0, 0, 1]
+```
+
+<Callout type="info">
+    This is a wrapper around the standalone `toGamut()` function from `"saturon/toGamut"` to get the needed coordinates.
+    [See `toGamut()` documentation](/docs/api/subpaths/gamut#to-gamut) for details.
+</Callout>
+
+---
+
+## `Color.prototype.inGamut()` [#in-gamut]
+
+Determines whether the current color coordinates lie strictly within the boundaries of a given physical gamut space. [See `saturon/gamut` for more details.](https://www.google.com/search?q=/docs/api/gamut)
+
+```ts
+const color = new Color("display-p3", [1, 0, 0]);
+console.log(color.inGamut("srgb")); // false
+console.log(color.inGamut("display-p3")); // true
+```
+
+<Callout type="info">
+    This is a wrapper around the standalone `inGamut()` function from `"saturon/gamut"`. [See `inGamut()`
+    documentation](/docs/api/subpaths/gamut#in-gamut) for details.
+</Callout>

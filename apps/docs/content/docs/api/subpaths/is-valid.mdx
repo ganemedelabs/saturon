@@ -1,0 +1,68 @@
+---
+title: saturon/isValid
+description: Check whether a string or token sequence is a valid, parseable CSS color or satisfies a target grammar rule.
+---
+
+The `saturon/isValid` subpath exposes the `isValid()` function to quickly test if a string or array of tokens represents a valid, parseable color without throwing errors or creating objects.
+
+## `isValid()` [#is-valid]
+
+Determines whether a color string (or token sequence) is syntactically valid and can be successfully parsed into color data. It supports restricting checks against specific CSS grammar rules or color types.
+
+```ts
+import { isValid } from "saturon/isValid";
+
+const valid = isValid("hsl(210 100% 50%)");
+console.log(valid); // true
+
+const invalid = isValid("hsl(210deg 100% 50% / invalid)");
+console.log(invalid); // false
+```
+
+## Signature
+
+```ts
+function isValid(input: string | string[], options?: IsValidOptions): boolean;
+```
+
+### Parameters
+
+| Parameter | Type                 | Description                                               |
+| --------- | -------------------- | --------------------------------------------------------- |
+| `input`   | `string \| string[]` | The color string or tokenized array to validate.          |
+| `options` | `IsValidOptions`     | Configuration options controlling validation constraints. |
+
+### Options (`IsValidOptions`)
+
+| Option | Type     | Default     | Description                                                                                                                        |
+| ------ | -------- | ----------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `rule` | `string` | `undefined` | Specific grammar rule or expression to test against (e.g., `"<rgb()>"`, `"<hex-color>"`, `"<color-base>"`). If omitted, tests all. |
+
+### Returns
+
+A `boolean` indicating whether the input matches the specified rule (if provided) and parses successfully.
+
+## Behavior
+
+1. Tokenizes input strings or joins token arrays to construct a unified sequence for validation.
+2. When `options.rule` is provided, tests the tokens against registered grammar rules (`grammarMap`), custom validators, or dynamically parsed inline expressions.
+3. Ensures the input successfully resolves via `parse()` without throwing exceptions.
+4. Automatically intercepts and catches all internal parsing or tokenization errors, returning `false` instead of throwing.
+
+## Usage Example
+
+```ts
+import { isValid } from "saturon/isValid";
+
+// General validity check
+isValid("#ff5733"); // true
+isValid("rgb(255 0 0)"); // true
+isValid("not-a-color"); // false
+
+// Validate against a specific grammar rule
+isValid("#ff5733", { rule: "<hex-color>" }); // true
+isValid("hsl(0 100% 50%)", { rule: "<hex-color>" }); // false
+
+// Validate against specific functional syntax
+isValid("rgb(255, 0, 0)", { rule: "<rgb()>" }); // true
+```

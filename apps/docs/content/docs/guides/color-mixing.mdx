@@ -1,0 +1,97 @@
+---
+title: Color Mixing & Interpolation
+description: Master blending colors with mix(), creating multi-stop gradients with interpolate(), and generating discrete color scale palettes.
+---
+
+import InteractiveColorMixer from "@/components/color-mixer";
+import InteractiveColorInterpolator from "@/components/color-interpolator";
+import InteractiveColorScale from "@/components/color-scale";
+
+Saturon provides a powerful, CSS-spec-compliant engine for blending and interpolating colors. Whether you need to mix two colors by exact percentages, create fluid multi-stop gradients, or generate discrete color palettes, the static methods on the `Color` class provide a highly accurate, developer-friendly API.
+
+By default, all mixing and interpolation in Saturon happens in the OKLab color space, ensuring perceptually uniform transitions without the muddy "gray dead zones" common in standard RGB mixing.
+
+## Static Mixing with `Color.mix()` [#mix]
+
+The `Color.mix()` method accurately replicates the behavior of the W3C CSS `color-mix()` function. It statically mixes an array of colors together based on defined weights or percentages.
+
+### Signature
+
+```ts
+static mix(colors: MixItem[], options: MixOptions): Color
+```
+
+The `colors` array expects objects containing a `color` (a `Color` instance) and an optional `percentage` (a number from `0` to `1`). If percentages are omitted, Saturon distributes the remaining weight evenly, exactly like CSS.
+
+### Example
+
+<InteractiveColorMixer />
+
+---
+
+## Continuous Interpolation with `Color.interpolate()` [#interpolate]
+
+When you need to transition smoothly across a multi-stop color gradient, `Color.interpolate()` returns a highly optimized sampling function.
+
+### Signature
+
+```ts
+static interpolate(colors: Color[], options: MixOptions): (t: number) => Color
+```
+
+Instead of returning a single color, it returns a function that accepts a normalized progress value `t` (from `0` to `1`). Saturon handles segment mapping internally, meaning you can pass as many color stops as you want.
+
+### Example
+
+<InteractiveColorInterpolator />
+
+---
+
+## Palette Generation with `Color.scale()` [#scale]
+
+If you are building design systems, themes, or data visualizations, you often need a specific number of discrete colors extracted from a gradient. `Color.scale()` automates this by discretizing an interpolation into a fixed number of `steps`.
+
+### Signature
+
+```ts
+static scale(colors: Color[], options: ScaleOptions): Color[]
+```
+
+This method shares the same options as `interpolate()`, but adds a `steps` property (defaulting to `5`).
+
+### Example
+
+<InteractiveColorScale />
+
+---
+
+## Interpolation Spaces & Hue Strategies
+
+The exact visual result of mixing or interpolating colors depends entirely on the color space you choose to mix them in, and how you handle **hue angles**.
+
+### The `in` Option
+
+You can mix colors in any supported color space by changing the `in` property in your `MixOptions`.
+
+| Space                       | Characteristics                                                                                                                        |
+| --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `"oklab"` (Default)         | Perceptually uniform. Best for general-purpose mixing, preventing muddy midtones.                                                      |
+| `"srgb"`                    | Standard digital mixing. Can result in dark/gray bands between contrasting colors.                                                     |
+| `"oklch"`, `"lch"`, `"hsl"` | Cylindrical spaces. Excellent for vibrant gradients, as they interpolate around the color wheel instead of cutting through the middle. |
+
+### The `hue` Option
+
+When interpolating in a cylindrical space (like `hsl`, `lch`, or `oklch`), the hue channel is an angle (0-360°). Saturon needs to know _which direction_ around the color wheel it should travel.
+
+You control this using the W3C standard hue interpolation strategies:
+
+```ts
+Color.interpolate([red, blue], { in: "oklch", hue: "shorter" });
+```
+
+| Strategy              | Behavior                                                                                                                                   |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `"shorter"` (Default) | Takes the shortest path around the wheel. E.g., transitioning from 10° to 350° will cross through 0°, traveling a total of 20°.            |
+| `"longer"`            | Takes the longest path around the wheel. E.g., from 10° to 350°, it will travel 340° in the opposite direction, creating a rainbow effect. |
+| `"increasing"`        | Always travels clockwise (increasing angles), regardless of distance.                                                                      |
+| `"decreasing"`        | Always travels counter-clockwise (decreasing angles), regardless of distance.                                                              |

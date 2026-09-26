@@ -1,0 +1,286 @@
+{
+    "name": "saturon",
+    "version": "0.4.0",
+    "description": "A runtime-extensible JavaScript library for parsing, converting, and manipulating colors with full CSS spec support.",
+    "type": "module",
+    "private": false,
+    "author": "ganemedelabs",
+    "license": "MIT",
+    "main": "dist/index.js",
+    "module": "dist/index.js",
+    "types": "dist/index.d.ts",
+    "unpkg": "dist/index.umd.js",
+    "jsdelivr": "dist/index.umd.js",
+    "sideEffects": false,
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/ganemedelabs/saturon.git"
+    },
+    "bugs": {
+        "url": "https://github.com/ganemedelabs/saturon/issues"
+    },
+    "homepage": "https://github.com/ganemedelabs/saturon#readme",
+    "scripts": {
+        "build": "tsc && esbuild dist/index.js --bundle --format=iife --global-name=Saturon --outfile=dist/index.umd.js && esbuild dist/index.js --bundle --minify --format=iife --global-name=Saturon --outfile=dist/index.umd.min.js",
+        "test": "jest",
+        "lint": "eslint .",
+        "lint:fix": "eslint . --fix"
+    },
+    "exports": {
+        ".": {
+            "import": "./dist/index.js",
+            "types": "./dist/index.d.ts"
+        },
+        "./calc": {
+            "import": "./dist/calc.js",
+            "types": "./dist/calc.d.ts"
+        },
+        "./Color": {
+            "import": "./dist/Color.js",
+            "types": "./dist/Color.d.ts"
+        },
+        "./colorMix": {
+            "import": "./dist/colorMix.js",
+            "types": "./dist/colorMix.d.ts"
+        },
+        "./config": {
+            "import": "./dist/config.js",
+            "types": "./dist/config.d.ts"
+        },
+        "./contrast": {
+            "import": "./dist/contrast.js",
+            "types": "./dist/contrast.d.ts"
+        },
+        "./convert": {
+            "import": "./dist/convert.js",
+            "types": "./dist/convert.d.ts"
+        },
+        "./converters": {
+            "import": "./dist/converters.js",
+            "types": "./dist/converters.d.ts"
+        },
+        "./deltaE": {
+            "import": "./dist/deltaE.js",
+            "types": "./dist/deltaE.d.ts"
+        },
+        "./fitMethods": {
+            "import": "./dist/fitMethods.js",
+            "types": "./dist/fitMethods.d.ts"
+        },
+        "./format": {
+            "import": "./dist/format.js",
+            "types": "./dist/format.d.ts"
+        },
+        "./formatters": {
+            "import": "./dist/formatters.js",
+            "types": "./dist/formatters.d.ts"
+        },
+        "./gamut": {
+            "import": "./dist/gamut.js",
+            "types": "./dist/gamut.d.ts"
+        },
+        "./getters": {
+            "import": "./dist/getters.js",
+            "types": "./dist/getters.d.ts"
+        },
+        "./grammar": {
+            "import": "./dist/grammar.js",
+            "types": "./dist/grammar.d.ts"
+        },
+        "./interpolate": {
+            "import": "./dist/interpolate.js",
+            "types": "./dist/interpolate.d.ts"
+        },
+        "./isValid": {
+            "import": "./dist/isValid.js",
+            "types": "./dist/isValid.d.ts"
+        },
+        "./matrices": {
+            "import": "./dist/matrices.js",
+            "types": "./dist/matrices.d.ts"
+        },
+        "./namedColors": {
+            "import": "./dist/namedColors.js",
+            "types": "./dist/namedColors.d.ts"
+        },
+        "./parse": {
+            "import": "./dist/parse.js",
+            "types": "./dist/parse.d.ts"
+        },
+        "./parsers": {
+            "import": "./dist/parsers.js",
+            "types": "./dist/parsers.d.ts"
+        },
+        "./random": {
+            "import": "./dist/random.js",
+            "types": "./dist/random.d.ts"
+        },
+        "./registry": {
+            "import": "./dist/registry.js",
+            "types": "./dist/registry.d.ts"
+        },
+        "./scale": {
+            "import": "./dist/scale.js",
+            "types": "./dist/scale.d.ts"
+        },
+        "./shortcuts": {
+            "import": "./dist/shortcuts.js",
+            "types": "./dist/shortcuts.d.ts"
+        },
+        "./syntax": {
+            "import": "./dist/syntax.js",
+            "types": "./dist/syntax.d.ts"
+        },
+        "./systemColors": {
+            "import": "./dist/systemColors.js",
+            "types": "./dist/types.d.ts"
+        },
+        "./toArray": {
+            "import": "./dist/toArray.js",
+            "types": "./dist/toArray.d.ts"
+        },
+        "./toObject": {
+            "import": "./dist/toObject.js",
+            "types": "./dist/toObject.d.ts"
+        },
+        "./updateColor": {
+            "import": "./dist/updateColor.js",
+            "types": "./dist/updateColor.d.ts"
+        },
+        "./validators": {
+            "import": "./dist/validators.js",
+            "types": "./dist/validators.d.ts"
+        }
+    },
+    "typesVersions": {
+        "*": {
+            "calc": [
+                "dist/calc.d.ts"
+            ],
+            "Color": [
+                "dist/Color.d.ts"
+            ],
+            "colorMix": [
+                "dist/colorMix.d.ts"
+            ],
+            "config": [
+                "dist/config.d.ts"
+            ],
+            "contrast": [
+                "dist/contrast.d.ts"
+            ],
+            "convert": [
+                "dist/convert.d.ts"
+            ],
+            "converters": [
+                "dist/converters.d.ts"
+            ],
+            "deltaE": [
+                "dist/deltaE.d.ts"
+            ],
+            "fitMethods": [
+                "dist/fitMethods.d.ts"
+            ],
+            "format": [
+                "dist/format.d.ts"
+            ],
+            "formatters": [
+                "dist/formatters.d.ts"
+            ],
+            "gamut": [
+                "dist/gamut.d.ts"
+            ],
+            "getters": [
+                "dist/getters.d.ts"
+            ],
+            "grammar": [
+                "dist/grammar.d.ts"
+            ],
+            "interpolate": [
+                "dist/interpolate.d.ts"
+            ],
+            "isValid": [
+                "dist/isValid.d.ts"
+            ],
+            "matrices": [
+                "dist/matrices.d.ts"
+            ],
+            "namedColors": [
+                "dist/namedColors.d.ts"
+            ],
+            "parse": [
+                "dist/parse.d.ts"
+            ],
+            "parsers": [
+                "dist/parsers.d.ts"
+            ],
+            "random": [
+                "dist/random.d.ts"
+            ],
+            "registry": [
+                "dist/registry.d.ts"
+            ],
+            "scale": [
+                "dist/scale.d.ts"
+            ],
+            "shortcuts": [
+                "dist/shortcuts.d.ts"
+            ],
+            "syntax": [
+                "dist/syntax.d.ts"
+            ],
+            "systemColors": [
+                "dist/types.d.ts"
+            ],
+            "toArray": [
+                "dist/toArray.d.ts"
+            ],
+            "toObject": [
+                "dist/toObject.d.ts"
+            ],
+            "updateColor": [
+                "dist/updateColor.d.ts"
+            ],
+            "validators": [
+                "dist/validators.d.ts"
+            ]
+        }
+    },
+    "files": [
+        "dist",
+        "README.md",
+        "LICENSE",
+        "package.json"
+    ],
+    "keywords": [
+        "color-converter",
+        "css-colors",
+        "w3c",
+        "color",
+        "color-base",
+        "hex-color",
+        "named-color",
+        "color-function",
+        "light-dark",
+        "color-mix",
+        "transparent",
+        "contrast-color",
+        "device-cmyk",
+        "currentcolor",
+        "system-color"
+    ],
+    "devDependencies": {
+        "@eslint/js": "^10.0.1",
+        "@types/jest": "^30.0.0",
+        "@types/node": "^24.6.2",
+        "esbuild": "^0.25.11",
+        "eslint": "^10.3.0",
+        "jest": "^30.2.0",
+        "jiti": "^2.7.0",
+        "prettier": "^3.9.8",
+        "ts-jest": "^29.4.4",
+        "ts-node": "^10.9.2",
+        "typescript": "^5.9.3",
+        "typescript-eslint": "^8.59.2"
+    }
+}

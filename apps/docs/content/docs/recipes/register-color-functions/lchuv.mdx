@@ -1,0 +1,56 @@
+---
+title: LCH(uv)
+description: A recipe to register the LCH(uv) color function in Saturon.
+---
+
+## Implementation
+
+```ts title="src/index.ts"
+import { Color } from "saturon";
+
+/**
+ * @see {@link http://www.brucelindbloom.com/index.html?Eqn_LCH_to_Luv.html|LCH(uv) to Luv}
+ * @see {@link http://www.brucelindbloom.com/index.html?Eqn_Luv_to_LCH.html|Luv to LCH(uv)}
+ */
+Color.register("color-models", [
+    {
+        name: "lchuv",
+        value: {
+            components: {
+                l: { index: 0, value: "percentage", precision: 5 },
+                c: { index: 1, value: "percentage", precision: 5 },
+                h: { index: 2, value: "hue", precision: 5 },
+                alpha: { index: 3, value: [0, 1], precision: 3 },
+            },
+            targetGamut: null,
+            bridge: "luv",
+            toBridge: ([L, C, H]) => {
+                const hRad = (H * Math.PI) / 180;
+                const u = C * Math.cos(hRad);
+                const v = C * Math.sin(hRad);
+                return [L, u, v];
+            },
+            fromBridge: ([L, u, v]) => {
+                const C = Math.sqrt(u * u + v * v);
+                let H = Math.atan2(v, u) * (180 / Math.PI);
+                if (H < 0) H += 360;
+                return [L, C, H];
+            },
+        },
+    },
+]);
+```
+
+## Usage
+
+```ts title="src/index.ts"
+import { Color } from "saturon";
+
+const validLchuv = Color.isValid("lchuv(28% 57% 165)");
+console.log(validLchuv); // true
+
+const validColorMix = Color.isValid("color-mix(in lchuv longer hue, orange, brown)");
+console.log(validColorMix); // true
+
+console.log(Color.from("purple").to("lchuv"));
+```

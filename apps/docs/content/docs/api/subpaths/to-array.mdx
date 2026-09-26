@@ -1,0 +1,101 @@
+---
+title: saturon/toArray
+description: Export raw numeric arrays of component values, handling special values like NaN and Infinity with gamut fitting and precision options.
+---
+
+The `saturon/toArray` subpath exports the `toArray()` function and the `normalizeComponentValue()` helper. It converts raw `ColorData` objects into normalized, gamut-fitted numeric arrays suitable for calculations or lower-level processing.
+
+## `toArray()` [#to-array]
+
+Extracts numeric component coordinates from a `ColorData` object, normalizes special floating-point edge cases (`NaN`, `Infinity`, `-Infinity`), applies gamut fitting, and enforces decimal precision.
+
+```ts
+import { toArray } from "saturon/toArray";
+
+const color = { model: "rgb", coords: [300, -20, 150, 0.8555] };
+const array = toArray(color, { fit: "clip", precision: 2 });
+
+console.log(array); // [255, 0, 150, 0.86]
+```
+
+## Signature
+
+```ts
+function toArray(color: ColorData, options?: ComponentOptions): number[];
+```
+
+### Parameters
+
+| Parameter | Type               | Description                                                                    |
+| --------- | ------------------ | ------------------------------------------------------------------------------ |
+| `color`   | `ColorData`        | The input color data object (`{ model, coords }`) to convert.                  |
+| `options` | `ComponentOptions` | Optional configuration controlling gamut fitting method and decimal precision. |
+
+### Options (`ComponentOptions`)
+
+| Option      | Type        | Default               | Description                                                                                                   |
+| ----------- | ----------- | --------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `fit`       | `FitMethod` | `config.defaults.fit` | The gamut mapping method to apply to out-of-bounds coordinates (e.g., `"clip"`, `"css-gamut-map"`).           |
+| `precision` | `number`    | `undefined`           | The decimal place limit for rounding output coordinates. Values `> 100` fall back to unconstrained precision. |
+
+### Returns
+
+An array of numbers representing the normalized, fitted color coordinates followed by the alpha channel (e.g., `[r, g, b, alpha]`).
+
+---
+
+## `normalizeComponentValue()` [#normalize-component-value]
+
+A helper utility used internally by `toArray()` to resolve non-finite values into model-appropriate numeric bounds.
+
+```ts
+import { normalizeComponentValue } from "saturon/toArray";
+
+// Resolves Infinity to max component value (360 for hue)
+const maxHue = normalizeComponentValue(Infinity, "hue"); // 360
+
+// Resolves NaN to 0
+const fallback = normalizeComponentValue(NaN, "percentage"); // 0
+```
+
+### Signature
+
+```ts
+function normalizeComponentValue(component: number, value: ComponentDefinition["value"]): number;
+```
+
+### Normalization Rules
+
+- Finite numbers: Returned unchanged.
+- `NaN` / non-numbers: Normalized to `0`.
+- `Infinity`: Resolved to the component's maximum boundary (`360` for `"hue"`, `100` for `"percentage"`, or upper bound for explicit tuple ranges `[min, max]`).
+- `-Infinity`: Resolved to the component's minimum boundary (`0` or lower bound for explicit tuple ranges).
+
+---
+
+## Behavior
+
+1. Validates that the specified color `model` has registered component definitions; throws an error if missing.
+2. Sanitizes the primary color channels (up to 3 dimensions) using `normalizeComponentValue()`.
+3. Applies the selected `fit` method (or engine default) and rounds coordinates according to `precision`.
+4. Normalizes the alpha channel (defaults to `1` if absent) and rounds it according to either the custom `precision` option or the component definition's default precision (defaults to `3` decimals).
+
+---
+
+## Usage Example
+
+```ts
+import { toArray } from "saturon/toArray";
+
+const hslData = { model: "hsl", coords: [180, Infinity, 50] };
+
+// Normalizes Infinity to 100% saturation and returns alpha as 1
+const normalized = toArray(hslData);
+console.log(normalized); // [180, 100, 50, 1]
+```
+
+---
+
+## Errors
+
+- Throws an `Error` if the specified color model is not registered in `colorModels`.

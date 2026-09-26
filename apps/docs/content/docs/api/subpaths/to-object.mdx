@@ -1,0 +1,76 @@
+---
+title: saturon/toObject
+description: Export color data components mapped to a descriptive object with options for precision and gamut fitting.
+---
+
+The `saturon/toObject` subpath provides the standalone `toObject()` function, which maps a color's coordinate values to key-value pairs using the descriptive component names of its color model (e.g., `{ r: 255, g: 0, b: 0, alpha: 1 }`).
+
+## `toObject()` [#to-object]
+
+Converts a `ColorData` object into a record mapping each named component to its numeric coordinate. Internally relies on `toArray()` to handle precision rounding, gamut fitting, and special numeric cases.
+
+```ts
+import { toObject } from "saturon/toObject";
+
+const color = { model: "hsl", coords: [210, 100, 50, 0.8] };
+const obj = toObject(color);
+
+console.log(obj); // { h: 210, s: 100, l: 50, alpha: 0.8 }
+```
+
+## Signature
+
+```ts
+function toObject<M ColorModel="ColorModel" extends>(
+    color: ColorData,
+    options?: ComponentOptions
+): { [key in Component<M>]: number };
+
+```
+
+### Parameters
+
+| Parameter | Type               | Description                                                      |
+| --------- | ------------------ | ---------------------------------------------------------------- |
+| `color`   | `ColorData`        | The input color data object (`{ model, coords }`) to convert.    |
+| `options` | `ComponentOptions` | Optional configuration for precision rounding and gamut mapping. |
+
+### Options (`ComponentOptions`)
+
+| Option      | Type        | Default     | Description                                                                |
+| ----------- | ----------- | ----------- | -------------------------------------------------------------------------- |
+| `precision` | `number`    | `undefined` | Maximum decimal places to round coordinate values.                         |
+| `fit`       | `FitMethod` | `"none"`    | Gamut fitting method used if coordinates exceed standard model boundaries. |
+
+### Returns
+
+A record mapping each component name of the target model (`Component<M>`) to its numeric value.
+
+## Behavior
+
+1. Passes the input `color` and `options` to `toArray()`, resolving special numeric values (`NaN`, `Infinity`, `-Infinity`) and applying requested precision or gamut fitting.
+2. Checks that the specified `color.model` exists and has component definitions registered in `colorModels`.
+3. Iterates through registered model components and assigns each normalized coordinate to its matching component name key.
+
+## Usage Example
+
+```ts
+import { toObject } from "saturon/toObject";
+
+// Convert RGB color data to a named component object
+const rgbColor = { model: "rgb", coords: [255, 87, 51, 1] };
+const rgbObj = toObject(rgbColor);
+// { r: 255, g: 87, b: 51, alpha: 1 }
+
+// Apply precision options during object conversion
+const oklchColor = {
+    model: "oklch",
+    coords: [0.623456, 0.251234, 140.8912, 1],
+};
+const roundedObj = toObject(oklchColor, { precision: 2 });
+// { l: 0.62, c: 0.25, h: 140.89, alpha: 1 }
+```
+
+## Errors
+
+- Throws an `Error` if the provided color model lacks registered component definitions.

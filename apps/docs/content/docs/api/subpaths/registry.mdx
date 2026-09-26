@@ -1,0 +1,129 @@
+---
+title: saturon/registry
+description: Inject or remove custom color models, formatters, syntax rules, and gamut spaces in Saturon.
+---
+
+The `saturon/registry` subpath provides low-level control over Saturon's central engine, allowing you to dynamically register and unregister custom color spaces, models, syntax rules, formatters, gamut fitting methods, named colors, and shortcuts at runtime.
+
+## `register()` [#register]
+
+Registers a batch of custom extensions for a specified registry category. Clears internal caches automatically to apply new grammar rules and conversions.
+
+```ts
+import { register } from "saturon/registry";
+
+// Register custom named colors
+register("named-colors", [
+    { name: "brand-blue", value: [10, 100, 240] },
+    { name: "brand-gold", value: [255, 215, 0] },
+]);
+```
+
+### Signature
+
+```ts
+function register<T RegistererType extends>(
+    type: T,
+    entries: Array<{
+        name: Parameters<RegistererFn<T>>[0];
+        value: Parameters<RegistererFn<T>>[1];
+    }>
+): void;
+
+```
+
+### Parameters
+
+| Parameter | Type                                  | Description                                                                                            |
+| --------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `type`    | `RegistererType`                      | The registration category (e.g., `"named-colors"`, `"color-models"`, `"fit-methods"`, `"formatters"`). |
+| `entries` | `Array<{ name: string; value: any }>` | An array of entry objects containing the target `name` and its handler or configuration `value`.       |
+
+---
+
+## `unregister()` [#unregister]
+
+Removes previously registered items from the engine across specified categories.
+
+```ts
+import { unregister } from "saturon/registry";
+
+// Remove custom named colors
+unregister("named-colors", ["brand-blue", "brand-gold"]);
+```
+
+### Signature
+
+```ts
+function unregister<T RegistererType extends>(
+    type: T,
+    names: Array<Parameters<UnregistererFn<T>>[0]>
+): void;
+
+```
+
+### Parameters
+
+| Parameter | Type             | Description                                                   |
+| --------- | ---------------- | ------------------------------------------------------------- |
+| `type`    | `RegistererType` | The target registry category to unregister items from.        |
+| `names`   | `Array<string>`  | An array of registered identifiers or name strings to remove. |
+
+---
+
+## Supported Categories (`RegistererType`)
+
+| Category         | Description                                                                                       | Example Payload Value                    |
+| ---------------- | ------------------------------------------------------------------------------------------------- | ---------------------------------------- |
+| `"named-colors"` | Registers custom CSS color keyword names mapped to 3-channel RGB arrays `[r, g, b]`.              | `[10, 100, 240]`                         |
+| `"color-models"` | Injects custom color model definitions with channel specs and bridge conversion methods.          | `ColorModelConverter`                    |
+| `"color-spaces"` | Injects custom matrix-based linear color spaces (e.g., matrix conversions to/from bridge models). | `ColorSpaceConverter`                    |
+| `"parsers"`      | Injects custom grammar rules or validation syntax targets into the parser AST pipeline.           | `GrammarRuleSpec`                        |
+| `"formatters"`   | Registers custom color output formatting functions.                                               | `ColorFormatter`                         |
+| `"shortcuts"`    | Injects high-speed regex or functional string parsing shortcuts.                                  | `{ parse: Shortcut, appendTo?: string }` |
+| `"fit-methods"`  | Registers custom gamut clipping or mapping algorithms.                                            | `(coords, targetSpace) => number[]`      |
+
+---
+
+## Usage Example
+
+### Adding a Custom Gamut Fit Method
+
+```ts
+import { register } from "saturon/registry";
+
+register("fit-methods", [
+    {
+        name: "custom-clamp",
+        value: (coords) => coords.map((c) => Math.max(0, Math.min(255, c))),
+    },
+]);
+```
+
+### Adding a Custom Formatter
+
+```ts
+import { register } from "saturon/registry";
+
+register("formatters", [
+    {
+        name: "custom-hex",
+        value: {
+            bridge: "rgb",
+            fromBridge: (coords) => coords,
+            format: (coords) =>
+                `#${coords
+                    .slice(0, 3)
+                    .map((c) => Math.round(c).toString(16).padStart(2, "0"))
+                    .join("")}`,
+        },
+    },
+]);
+```
+
+---
+
+## Errors
+
+- Throws a `TypeError` if entry definitions or payloads do not strictly match required category schemas (e.g., non-array RGB values for named colors).
+- Throws an `Error` when attempting to register duplicate identifiers or duplicate values where unique constraints exist.

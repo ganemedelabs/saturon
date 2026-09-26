@@ -1,0 +1,51 @@
+---
+title: Gamut Mapping
+description: Understand how out-of-bounds wide-gamut coordinates are intelligently fitted to renderable targets using customizable mapping algorithms.
+---
+
+Saturon's gamut mapping engine is designed to intelligently resolve color coordinates that exceed the physical boundaries of a target color space (such as forcing a vibrant P3 color into standard sRGB).
+
+Instead of relying on a monolithic function, the architecture is highly modular. It leverages the conversion engine, a centralized component registry, and interchangeable mapping strategies to ensure accurate, spec-compliant color constraining.
+
+Here is a look under the hood at how the gamut mapping architecture actually works.
+
+## 1. The Core Pipeline (`toGamut`)
+
+When the engine is instructed to map a color into a specific gamut, it executes a three-step transformation pipeline via the `toGamut` function. The goal is to constrain the color to the target space's limits while returning the data in the user's originally requested color model.
+
+1. Forward Conversion: The engine first uses the `convert()` utility to transform the raw `ColorData` from its current model into the target color space (e.g., converting an OKLCH color into sRGB).
+2. Constrainment: The newly converted coordinates are passed into the `toArray()` and `fit()` pipeline. Here, the values are mathematically constrained to fit inside the target space using a specific algorithmic method.
+3. Reverse Conversion: Finally, the constrained coordinates are converted _back_ into the original color model. This ensures the output format remains consistent, but the visual color is now safely bounded by the target gamut.
+
+---
+
+## 2. The Fitting Engine (`fit` & `fitMethods`)
+
+The actual mathematical manipulation of color coordinates happens within the `fit()` function. This function acts as a controller that separates coordinate precision formatting from the complex mapping algorithms.
+
+When `fit()` is called, it delegates the heavy lifting to one of the strategies defined in the `fitMethods` dictionary.
+
+### The Clipping Strategy (`"clip"`)
+
+The fastest architectural path. The `clip` method directly accesses the cached component definitions. It iterates over the coordinates and simply truncates them to their defined `[min, max]` boundaries. If a component is defined as a `"hue"`, it uses modulo arithmetic to safely wrap the angle within a 0–360 degree range.
+
+### The Perceptual Strategies (`"chroma-reduction"` & `"css-gamut-map"`)
+
+These strategies are much more complex and interact with several other architectural layers to preserve the visual integrity of the color.
+
+1. Uniform Space Transition: The engine first uses an internal helper (`toNormArray`) to temporarily convert the color into `oklch`. OKLCh is a perceptually uniform space, making it the ideal environment for predicting how human eyes perceive color shifts.
+2. Binary Search Iteration: The algorithm locks the Lightness (`L`) and Hue (`H`) channels to prevent the color from drastically changing its core appearance. It then performs a highly precise "binary search" on the Chroma (`C`) channel, repeatedly testing lower saturation levels.
+3. Delta E Comparison: At each step of the search loop, the engine uses the `deltaEOK` function to calculate the perceptual distance (Delta E) between the candidate color and the target boundary.
+4. Resolution: The loop continues narrowing down the Chroma until the color falls safely inside the target gamut while maintaining a visual difference (Just Noticeable Difference, or JND) that is virtually indistinguishable to the human eye.
+
+Once the selected method returns the constrained coordinates, control is handed back to `fit()`. The controller then loops through the final array, applying the exact decimal precision configured for that specific color model before returning the output.
+
+---
+
+## 3. Validation Architecture (`inGamut`)
+
+Validation (checking if a color is out of bounds) is decoupled from the fitting engine.
+
+The `inGamut` function acts as the gatekeeper. It iterates through the cached component boundaries of the target space. However, because floating-point math during standard color conversion can result in microscopic inaccuracies (e.g., returning `100.0000000001` instead of `100`), strict boundary checking would cause false-positive failures.
+
+To solve this, the validation architecture introduces an epsilon tolerance. It pads the minimum and maximum boundaries with a tiny, configurable floating-point value (`config.defaults.epsilon`). This ensures the system only triggers expensive gamut mapping algorithms when a color is mathematically, meaningfully out of bounds.

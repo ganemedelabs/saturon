@@ -1,0 +1,52 @@
+---
+title: Recipes Overview
+description: Browse practical examples, snippet patterns, and common use cases.
+---
+
+import { Palette, FunctionSquare, Layers, Puzzle, SunMoon } from "lucide-react";
+
+Welcome to the Saturon recipes! Here you'll find practical examples and guides on how to use various features of the Saturon library effectively.
+Explore the different recipes to enhance your understanding and make the most out of Saturon in your projects.
+
+<Cards>
+    <Card
+      icon={<Palette className="text-pink-500 dark:text-pink-400" />}
+      title="Register Named Colors"
+      href="/docs/recipes/register-named-colors"
+    >
+      Learn how to add custom named colors to Saturon for easier color management.
+    </Card>
+
+    <Card
+        icon={<FunctionSquare className="text-violet-500 dark:text-violet-400" />}
+        title="Register Color Functions"
+        href="/docs/recipes/register-color-functions/hsi"
+    >
+        Discover how to create and register your own color functions to extend Saturon's capabilities.
+    </Card>
+
+    <Card
+        icon={<Layers className="text-cyan-500 dark:text-cyan-400" />}
+        title="Register Color Spaces"
+        href="/docs/recipes/register-color-spaces/display-p3-linear"
+    >
+        A guide on how to define and register new color spaces within Saturon.
+    </Card>
+
+    <Card
+        icon={<Puzzle className="text-amber-500 dark:text-amber-400" />}
+        title="Register Plugins"
+        href="/docs/recipes/register-plugins"
+    >
+        Find out how to create and register plugins to enhance Saturon's functionality.
+    </Card>
+
+    <Card
+      icon={<SunMoon className="text-indigo-500 dark:text-indigo-400" />}
+      title="Adapt System Colors to Environment"
+      href="/docs/recipes/adapt-system-colors"
+    >
+        Dynamically probe and sync native OS system colors across light and dark modes into Saturon.
+    </Card>
+
+</Cards>

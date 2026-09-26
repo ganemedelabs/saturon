@@ -1,0 +1,167 @@
+---
+title: Utility Subpaths
+description: Standalone, tree-shakable utility modules for direct functional workflows in Saturon.
+---
+
+import {
+    FileCode,
+    RefreshCw,
+    FileType,
+    Maximize2,
+    Sliders,
+    Blend,
+    ChartSpline,
+    Ruler,
+    Eye,
+    Dices,
+    CheckCircle2,
+    Settings,
+    Layers,
+    List,
+    Brackets,
+    Braces,
+    Palette,
+} from "lucide-react";
+
+Saturon provides its core features as standalone, tree-shakable utility subpaths. If you prefer a functional programming paradigm or need strict bundle-size optimizations, you can import these pure functions directly instead of using the object-oriented `Color` class.
+
+Every method available on the `Color` class is powered by these underlying standalone functions.
+
+<Cards>
+    <Card
+        title="saturon/colorMix"
+        href="/docs/api/subpaths/color-mix"
+        icon={<Blend className="text-indigo-500 dark:text-indigo-400" />}
+    >
+        Statically mix multiple colors by percentages (matching CSS `color-mix()` behavior).
+    </Card>
+
+    <Card
+        title="saturon/config"
+        href="/docs/api/subpaths/config"
+        icon={<Settings className="text-slate-500 dark:text-slate-400" />}
+    >
+        Manage and merge global runtime configuration settings for the Saturon engine.
+    </Card>
+
+    <Card
+        title="saturon/contrast"
+        href="/docs/api/subpaths/contrast"
+        icon={<Eye className="text-teal-500 dark:text-teal-400" />}
+    >
+        Calculate the WCAG 2.1 contrast ratio between two colors.
+    </Card>
+
+    <Card
+        title="saturon/convert"
+        href="/docs/api/subpaths/convert"
+        icon={<RefreshCw className="text-emerald-500 dark:text-emerald-400" />}
+    >
+        Convert color coordinates from one color model to another.
+    </Card>
+
+    <Card
+        title="saturon/deltaE"
+        href="/docs/api/subpaths/delta-e"
+        icon={<Ruler className="text-rose-500 dark:text-rose-400" />}
+    >
+        Calculate perceptual color differences using standard CIE metrics (76, 94, 2000, OKLab).
+    </Card>
+
+    <Card
+        title="saturon/format"
+        href="/docs/api/subpaths/format"
+        icon={<FileType className="text-purple-500 dark:text-purple-400" />}
+    >
+        Serialize color data into formatted, CSS-compliant strings.
+    </Card>
+
+    <Card
+        title="saturon/gamut"
+        href="/docs/api/subpaths/gamut"
+        icon={<Maximize2 className="text-amber-500 dark:text-amber-400" />}
+    >
+        Check gamut boundaries and map out-of-bounds colors into physical gamut spaces.
+    </Card>
+
+    <Card
+        title="saturon/getters"
+        href="/docs/api/subpaths/getters"
+        icon={<List className="text-sky-500 dark:text-sky-400" />}
+    >
+        Retrieve lists of registered engine items like available color models or fit methods.
+    </Card>
+
+    <Card
+        title="saturon/interpolate"
+        href="/docs/api/subpaths/interpolate"
+        icon={<ChartSpline className="text-cyan-500 dark:text-cyan-400" />}
+    >
+        Generate functions to interpolate across multi-stop color palettes in specific models.
+    </Card>
+
+    <Card
+        title="saturon/isValid"
+        href="/docs/api/subpaths/is-valid"
+        icon={<CheckCircle2 className="text-green-500 dark:text-green-400" />}
+    >
+        Determine if a given string is a valid, parseable CSS color without throwing errors.
+    </Card>
+
+    <Card
+        title="saturon/parse"
+        href="/docs/api/subpaths/parse"
+        icon={<FileCode className="text-blue-500 dark:text-blue-400" />}
+    >
+        Parse CSS color strings, named colors, and complex functions into raw color data.
+    </Card>
+
+    <Card
+        title="saturon/random"
+        href="/docs/api/subpaths/random"
+        icon={<Dices className="text-violet-500 dark:text-violet-400" />}
+    >
+        Generate random color coordinates based on specific criteria and model constraints.
+    </Card>
+
+    <Card
+        title="saturon/registry"
+        href="/docs/api/subpaths/registry"
+        icon={<Layers className="text-orange-500 dark:text-orange-400" />}
+    >
+        Inject or remove custom color models, formatters, syntax rules, and gamut spaces.
+    </Card>
+
+     <Card
+        title="saturon/scale"
+        href="/docs/api/subpaths/scale"
+        icon={<Palette className="text-lime-500 dark:text-lime-400" />}
+    >
+        Generate discrete color palettes by sampling evenly across multi-stop color interpolations.
+    </Card>
+
+    <Card
+        title="saturon/toArray"
+        href="/docs/api/subpaths/to-array"
+        icon={<Brackets className="text-fuchsia-500 dark:text-fuchsia-400" />}
+    >
+        Export raw numeric arrays of component values, handling special values like `NaN` and `Infinity`.
+    </Card>
+
+    <Card
+        title="saturon/toObject"
+        href="/docs/api/subpaths/to-object"
+        icon={<Braces className="text-red-500 dark:text-red-400" />}
+    >
+        Export color components mapped to a descriptive object with options for precision.
+    </Card>
+
+    <Card
+        title="saturon/updateColor"
+        href="/docs/api/subpaths/update-color"
+        icon={<Sliders className="text-pink-500 dark:text-pink-400" />}
+    >
+        Create new color data with modified component values via objects, arrays, or functions.
+    </Card>
+
+</Cards>

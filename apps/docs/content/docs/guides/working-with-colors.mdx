@@ -1,0 +1,223 @@
+---
+title: Working with Color Instances
+description: Discover how to convert, transform, extract, and format color channel values using in(), to(), with(), and data extraction methods on Color instances.
+---
+
+Once you have instantiated a `Color` object, Saturon provides clean, chainable instance methods for color space conversions, string serialization, and channel transformations. Every manipulation method is immutable—returning a new `Color` instance while keeping your original color data untouched.
+
+## Converting Models with `color.in()` [#in]
+
+The `in()` method converts a `Color` instance into a target color space (e.g., `hsl`, `oklab`, `oklch`), returning a new `Color` instance typed to that model.
+
+### Signature
+
+```ts
+color.in<T ColorModel extends>(targetModel: T): Color<T>
+```
+
+If the color is already in the requested model, `in()` performs a zero-overhead no-op and returns the current instance directly without conversion cost.
+
+### Example
+
+```ts
+import { Color } from "saturon";
+
+const rgbColor = Color.from("rgb(255 87 51)");
+
+// Convert RGB -> OKLab
+const oklabColor = rgbColor.in("oklab");
+console.log(oklabColor.toArray()); // [0.68036, 0.17474, 0.1165, 1]
+
+// Zero-overhead no-op if already in target space
+const hslColor = Color.from("hsl(50 100% 30%)").in("hsl");
+console.log(hslColor.toString()); // hsl(50 100 30)
+
+// Ideal for chaining transformations in specific spaces
+const lighterRgb = rgbColor
+    .in("hsl")
+    .with({ l: (l) => l + 20 })
+    .in("rgb");
+
+console.log(lighterRgb.toString()); // rgb(255 172 153)
+```
+
+---
+
+## String Serialization with `color.to()` [#to]
+
+The `to()` method formats and serializes the `Color` instance into a formatted CSS string in a target format, converting space representations on the fly.
+
+### Signature
+
+```ts
+color.to(format: OutputFormat, options?: FormattingOptions): string
+```
+
+### Supported Formats
+
+- **CSS Functional**: `"rgb"`, `"hsl"`, `"hwb"`, `"oklab"`, `"oklch"`, `"lab"`, `"lch"`
+- **RGB Notations**: `"hex-color"`, `"named-color"`, `"device-cmyk"`
+- **Color Function / CSS Level 4**: `"srgb"`, `"srgb-linear"`, `"display-p3"`, `"rec2020"`, `"a98-rgb"`, `"prophoto-rgb"`, `"xyz-d65"`, `"xyz-d50"`, `"xyz"`
+
+### Options
+
+| Option      | Type        | Default               | Description                                                                                                                           |
+| ----------- | ----------- | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `legacy`    | `boolean`   | `false`               | When `true`, outputs legacy comma-separated syntax (`rgb(255, 0, 0)`) instead of space-separated CSS Level 4 syntax (`rgb(255 0 0)`). |
+| `precision` | `number`    | Model default         | Sets maximum decimal places for coordinate values.                                                                                    |
+| `units`     | `boolean`   | `false`               | Appends explicit units (e.g., `%`, `deg`) to channel values where supported.                                                          |
+| `fit`       | `FitMethod` | `config.defaults.fit` | Controls gamut mapping/clipping behavior during string output.                                                                        |
+
+### Example
+
+```ts
+import { Color } from "saturon";
+
+const color = Color.from("oklch(0.5 0.1 240)");
+
+console.log(color.to("rgb")); // rgb(31 106 150)
+console.log(color.to("hsl")); // hsl(202 66% 35%)
+console.log(color.to("hwb")); // hwb(202 12% 41%)
+console.log(color.to("hex-color")); // #1f6a96
+```
+
+---
+
+## Channel Manipulation with `color.with()` [#with]
+
+The `with()` method updates channel values while retaining the current color space model. It accepts explicit values, sparse arrays, or updater functions for precise channel adjustments.
+
+### Signature
+
+```ts
+color.with(changes: ChannelUpdates | PartialCoords): Color
+```
+
+Because channels are specific to the active color model (e.g., `h` exists in `hsl` and `oklch`, but not in `rgb`), `with()` verifies that passed keys exist on the current model. To edit channels of a different model, chain `.in()` first.
+
+### Example
+
+```ts
+import { Color } from "saturon";
+
+const color = Color.from("hsl(50 100% 30%)");
+
+// 1. Dynamic function updater (Rotate hue by +30°)
+const rotated = color.with({ h: (h) => h + 30 });
+console.log(rotated.toString()); // hsl(80 100 30)
+
+// 2. Direct key-value overrides (Set saturation to 50%, lightness to 40%)
+const muted = color.with({ s: 50, l: 40 });
+console.log(muted.toString()); // hsl(50 50 40)
+
+// 3. Sparse array positioning ([hue, saturation, lightness, alpha])
+const direct = color.with([, 50, 50]);
+console.log(direct.toString()); // hsl(50 50 50)
+
+// 4. Model transition before channel edit
+const rgbColor = Color.from("rgb(255 87 51)");
+const adjusted = rgbColor
+    .in("hsl")
+    .with({ h: (h) => h + 30 })
+    .in("rgb");
+
+console.log(adjusted.to("rgb")); // rgb(255 190 51)
+```
+
+---
+
+## Model String Formatting with `color.toString()` [#toString]
+
+The `toString()` method formats the `Color` instance as a CSS string using its current model. Unlike `to()`, which converts to a target model or format, `toString()` retains the instance's active color space and offers options to control formatting precision, legacy CSS syntax, and unit display.
+
+### Signature
+
+```ts
+color.toString(options?: FormattingOptions): string
+```
+
+### Example
+
+```ts
+import { Color } from "saturon";
+
+const color = Color.from("hsl(210 100% 50%)");
+
+// Default modern string output
+console.log(color.toString()); // hsl(210 100 50)
+
+// Output legacy comma-separated CSS syntax
+console.log(color.toString({ legacy: true })); // hsl(210, 100%, 50%)
+
+// Formatted with explicit units and custom precision
+console.log(color.toString({ units: true, precision: 1 })); // hsl(210deg 100% 50%)
+```
+
+---
+
+## Extracting Object Coordinates with `color.toObject()` [#toObject]
+
+The `toObject()` method extracts the color's channel values as a key-value object mapped directly to the component names of its active color model (e.g., `{ r, g, b, a }` for RGB, or `{ l, c, h, a }` for OKLCH).
+
+### Signature
+
+```ts
+color.toObject(options?: ComponentOptions): { [key in Component<M>]: number }
+```
+
+### Example
+
+```ts
+import { Color } from "saturon";
+
+// 1. Extract HSL components
+const hslColor = Color.from("hsl(266 87% 20%)");
+const hslComponents = hslColor.toObject();
+console.log(hslComponents); // { h: 266, s: 87, l: 20, a: 1 }
+
+// 2. Extract OKLCH components
+const oklchColor = hslColor.in("oklch");
+const oklchComponents = oklchColor.toObject();
+console.log(oklchComponents); // { l: 0.32, c: 0.18, h: 298.5, a: 1 }
+```
+
+---
+
+## Extracting Array Coordinates with `color.toArray()` [#toArray]
+
+The `toArray()` method exports the raw coordinate values of the color as an array of numbers. This is particularly useful when passing color data to WebGL contexts, canvas operations, or third-party mathematical utility functions.
+
+### Signature
+
+```ts
+color.toArray(options?: ComponentOptions): number[]
+```
+
+### Example
+
+```ts
+import { Color } from "saturon";
+
+const color = Color.from("rgb(255 87 51 / 0.8)");
+
+// Get raw numerical coordinate array [r, g, b, alpha]
+const coords = color.toArray();
+console.log(coords); // [255, 87, 51, 0.8]
+
+// Pass directly into external graphics pipelines or canvas calls
+const [r, g, b, a] = color.toArray();
+ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${a})`;
+```
+
+---
+
+## Instance Methods At a Glance
+
+| Method                    | Returns                  | Primary Purpose                                           | Immutability                         |
+| ------------------------- | ------------------------ | --------------------------------------------------------- | ------------------------------------ |
+| `color.in(model)`         | `Color<M>`               | Convert color coordinates into another color model.       | New Instance (or self if same model) |
+| `color.to(format)`        | `string`                 | Serialize color into a target CSS string representation.  | Returns `string`                     |
+| `color.with(changes)`     | `Color<M>`               | Modify channel values using values, arrays, or functions. | New Instance                         |
+| `color.toString(options)` | `string`                 | Format color as a CSS string in its current model.        | Returns `string`                     |
+| `color.toObject(options)` | `Record<string, number>` | Export channel values as a component key-value object.    | Returns `object`                     |
+| `color.toArray(options)`  | `number[]`               | Export channel values as a raw numerical array.           | Returns `array`                      |

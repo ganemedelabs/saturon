@@ -1,0 +1,63 @@
+---
+title: saturon/convert
+description: Transform color coordinates between color models using graph pathfinding.
+---
+
+The `saturon/convert` subpath provides the standalone `convert()` function, which transforms color coordinates from one color model to another using graph-based pathfinding and cached conversion pipelines.
+
+## `convert()` [#convert]
+
+Converts a raw `ColorData` object into a numerical coordinate array matching the target color model.
+
+```ts
+import { convert } from "saturon/convert";
+
+const rgbColor = { model: "rgb", coords: [255, 87, 51, 1] };
+const hslCoords = convert(rgbColor, "hsl");
+
+console.log(hslCoords); // [11, 100, 60, 1]
+```
+
+## Signature
+
+```ts
+function convert(color: ColorData, to: ColorModel | string): number[];
+```
+
+### Parameters
+
+| Parameter | Type                   | Description                                                                   |
+| --------- | ---------------------- | ----------------------------------------------------------------------------- |
+| `color`   | `ColorData`            | The source color object containing the current `model` name and `coords`.     |
+| `to`      | `ColorModel \| string` | The target color model identifier (e.g., `"hsl"`, `"oklab"`, `"display-p3"`). |
+
+### Returns
+
+An array of numbers (`number[]`) representing the converted coordinates in the target model. Alpha is preserved and appended as the 4th element (defaulting to `1` if omitted in the source).
+
+## Behavior
+
+1. If the target model matches the source model (`to === from`), `convert()` immediately returns the normalized coordinates without graph traversal, converting any `NaN` values to `0`.
+2. Constructs an adjacency graph of connected color models connected through their designated `bridge` models. The model graph and resolved conversion pipelines are cached globally (`cache.get("graph")`, `cache.get("paths")`).
+3. Uses Breadth-First Search (BFS) to find the shortest conversion path between the source model and target model.
+4. Runs the input channel values through each sequential converter step in the resolved pipeline, sanitizes `NaN` inputs, and appends the preserved alpha coordinate.
+
+## Usage Example
+
+```ts
+import { convert } from "saturon/convert";
+
+const oklchColor = { model: "oklch", coords: [0.6, 0.25, 140, 0.8] };
+
+// Convert OKLCH coordinates to RGB
+const rgbCoords = convert(oklchColor, "rgb");
+console.log(rgbCoords); // [ -42.34..., 159.16..., -58.49..., 0.8 ]
+
+// Convert OKLCH coordinates to HSL
+const hslCoords = convert(oklchColor, "hsl");
+console.log(hslCoords); // [ 115.54..., 216.21..., 19.73..., 0.8 ]
+```
+
+## Errors
+
+- Throws an `Error` when no conversion path exists between the source and target models.

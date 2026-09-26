@@ -1,0 +1,43 @@
+---
+title: Dual-Path Parsing
+description: Learn how Saturon optimizes performance by splitting parsing into a fast "Shortcuts" lane for simple strings and a robust Lexer/Grammar pipeline for complex CSS functions.
+---
+
+The Saturon parsing engine balances fast execution for common colors (e.g., named colors or hex colors) with robust processing for complex CSS color functions.
+
+To achieve this, the parser operates as a two-stage pipeline: a highly optimized Fast Path (Shortcuts) for everyday formats, and a comprehensive Standard Path (AST Parsing) for advanced syntax.
+
+Here is a breakdown of how a raw color string flows through the Saturon architecture.
+
+## The Fast Path (Shortcuts)
+
+When a color string enters the parser, Saturon first runs it through a series of "Shortcuts" to bypass expensive lexical analysis.
+
+A unique feature of shortcuts in Saturon is that they act as both validators and parsers at the same time. When a string is passed into a shortcut, the engine attempts to resolve it immediately.
+
+- If the string is valid for that format, the shortcut returns the parsed `ColorData` object, and the engine halts early.
+- If the string is invalid, the shortcut returns `null`. This `null` value acts as a signal, telling the engine that the string failed this specific format and it should move on to the next one.
+
+Because of this design, you can use any shortcut purely as a validator simply by checking if its output is not `null`.
+
+If a string returns `null` across all shortcuts, it falls back to the Standard Path.
+
+---
+
+## The Standard Path (Syntax Parsing)
+
+Complex strings—such as modern CSS functions like `oklch()`, `color-mix()`, or those containing variables—cannot be resolved by shortcuts. They are passed to the Standard Path, which relies on a formal syntax parser.
+
+Unlike the Fast Path, the Standard Path strictly separates validation from parsing.
+
+- Validators in this slower path solely return a boolean (`true` or `false`) to confirm structural integrity.
+- Parsers in this path solely return `ColorData` (or `undefined`/throw an error).
+
+This phase is broken down into three sequential steps:
+
+1. Tokenization (`tokenize`)
+   The raw string is scanned and broken down into a flat array of lexical tokens, separating functions, numbers, percentages, and parentheses.
+2. Validation (`validateTokens`)
+   The token array is evaluated against modern CSS grammar rules. This step acts purely as a boolean validator. If valid, the tokens are organized into an Abstract Syntax Tree (AST).
+3. Parsing (`parseNode`)
+   The engine traverses the AST, calculates the internal values, and extracts the final color model and coordinates. It returns the final `ColorData`.

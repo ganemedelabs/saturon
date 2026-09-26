@@ -1,0 +1,61 @@
+---
+title: Architecture Overview
+description: Understand how the grammar-aware parser and conversion engine work under the hood.
+---
+
+import { Cpu, GitFork, Target, Paintbrush, Puzzle } from "lucide-react";
+
+## The Engine Lifecycle
+
+The following diagram illustrates the structural relationships between Saturon's modules and the lifecycle of a color as it passes through the system: from a raw CSS string down to a standardized formatted output.
+
+[![Saturon Engine Architecture Diagram](/images/architecture.png)](/images/architecture.png)
+
+---
+
+## Architecture Deep Dives
+
+Explore the five core pillars that make up Saturon to understand how data flows through each pipeline, and how you can extend them:
+
+<Cards>
+    <Card 
+      icon={<Cpu className="text-blue-500 dark:text-blue-400" />} 
+      title="Dual-Path Parsing" 
+      href="/docs/architecture/parsing"
+    >
+      Learn how Saturon optimizes performance by splitting parsing into a fast "Shortcuts" lane for simple strings and a robust Lexer/Grammar pipeline for complex CSS functions.
+    </Card>
+
+    <Card
+      icon={<GitFork className="text-emerald-500 dark:text-emerald-400" />}
+      title="Graph Pathfinding"
+      href="/docs/architecture/conversion"
+    >
+      Discover how dynamic Bidirectional Graph (BFS) pathfinding eliminates the need for exhaustive, hardcoded conversion matrices between color models.
+    </Card>
+
+    <Card
+      icon={<Target className="text-amber-500 dark:text-amber-400" />}
+      title="Gamut Mapping"
+      href="/docs/architecture/gamut-mapping"
+    >
+      Understand how out-of-bounds wide-gamut coordinates are intelligently fitted to renderable targets using customizable mapping algorithms.
+    </Card>
+
+    <Card
+      icon={<Paintbrush className="text-purple-500 dark:text-purple-400" />}
+      title="Formatting & Serialization"
+      href="/docs/architecture/formatting"
+    >
+      See how normalized, internal coordinates are cleanly serialized back into spec-compliant CSS strings, hex codes, or custom formats.
+    </Card>
+
+    <Card
+      icon={<Puzzle className="text-rose-500 dark:text-rose-400" />}
+      title="Extensibility"
+      href="/docs/architecture/extensibility"
+    >
+      Find out how to leverage the decoupled architecture to inject entirely new color spaces, custom syntaxes, and formatters directly into the engine.
+    </Card>
+
+</Cards>

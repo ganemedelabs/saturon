@@ -1,0 +1,82 @@
+---
+title: saturon/getters
+description: Query registered color models, spaces, keywords, fit methods, and model components from the engine.
+---
+
+The `saturon/getters` subpath exposes the `get()` helper function alongside the `getters` registry object to inspect available color models, physical spaces, named colors, format outputs, and dynamic model component arrays.
+
+## `get()` [#get]
+
+Retrieves an array of registered items or options for a specific query key. Supports both static keys and dynamic model component keys (e.g., `"components:rgb"`).
+
+```ts
+import { get } from "saturon/getters";
+
+// Retrieve registered color models
+const models = get("color-models");
+console.log(models); // ["rgb", "hsl", "hsv", "oklab", "oklch", ...]
+
+// Retrieve components for a specific color model
+const rgbComponents = get("components:rgb");
+console.log(rgbComponents); // ["r", "g", "b", "alpha"]
+```
+
+## Signature
+
+```ts
+function get<T Getter extends>(type: T): ReturnType<GettersMap[T]>;
+
+```
+
+### Parameters
+
+| Parameter | Type     | Description                                                                                     |
+| --------- | -------- | ----------------------------------------------------------------------------------------------- |
+| `type`    | `Getter` | The category key to query. Can be a static category or a dynamic `"components:<model>"` string. |
+
+### Returns
+
+An array of strings corresponding to the queried category.
+
+| Query Key (`type`)            | Return Type                | Description                                                                           |
+| ----------------------------- | -------------------------- | ------------------------------------------------------------------------------------- |
+| `"color-models"`              | `ColorModel[]`             | All registered color model keys.                                                      |
+| `"color-spaces"`              | `ColorSpace[]`             | All registered physical gamut/space identifiers (e.g., `"srgb"`, `"p3"`).             |
+| `"named-colors"`              | `NamedColor[]`             | Recognized CSS named color keywords (e.g., `"red"`, `"rebeccapurple"`).               |
+| `"system-colors"`             | `SystemColor[]`            | Registered system color names (e.g., `"Canvas"`, `"ButtonText"`).                     |
+| `"output-types"`              | `OutputType[]`             | Formatting output targets supporting both bridge conversion and string serialization. |
+| `"fit-methods"`               | `FitMethod[]`              | Available gamut fitting strategies (`"none"`, `"clip"`, `"css-gamut-map"`, etc.).     |
+| `"hue-interpolation-methods"` | `HueInterpolationMethod[]` | Supported hue paths for cylindrical interpolation (`"shorter"`, `"longer"`, etc.).    |
+| `"components:<model>"`        | `Component<M>[]`           | Dynamic getter returning component channel names for a specific model `M`.            |
+
+## `getters` Registry Proxy [#getters]
+
+The underlying Proxy object containing getter function implementations for each category. Static categories are stored directly, while `"components:<model>"` requests are resolved dynamically via the Proxy handler.
+
+```ts
+import { getters } from "saturon/getters";
+
+// Call getter function directly
+const fitMethods = getters["fit-methods"]();
+console.log(fitMethods); // ["none", "clip", "chrome-reduction", "css-gamut-map"]
+```
+
+## Usage Example
+
+```ts
+import { get } from "saturon/getters";
+
+// Inspect available gamut fit methods
+const methods = get("fit-methods");
+if (methods.includes("css-gamut-map")) {
+    console.log("CSS Gamut Mapping algorithm is available.");
+}
+
+// Dynamically list channels for OKLCH
+const oklchChannels = get("components:oklch");
+console.log(oklchChannels); // ["l", "c", "h", "alpha"]
+```
+
+## Errors
+
+- Throws an `Error` if invoked with an unrecognized or unregistered category key.

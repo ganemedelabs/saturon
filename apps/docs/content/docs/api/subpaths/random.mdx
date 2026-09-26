@@ -1,0 +1,111 @@
+---
+title: saturon/random
+description: Generate random color data objects with optional model constraints, channel limits, custom biases, and normal distributions.
+---
+
+The `saturon/random` subpath exports the `random()` function, which generates a random `ColorData` object (`{ model, coords }`). It supports specifying target color models, channel boundary limits, bias transformation functions, and normal distribution parameters (base and deviation).
+
+## `random()` [#random]
+
+Generates a pseudo-random color. If no options are provided, a color model is chosen at random from all registered models, and its channels are populated within their natural domain limits.
+
+```ts
+import { random } from "saturon/random";
+
+// Generate a random color in a randomly chosen model
+const color = random();
+console.log(color); // e.g., { model: "oklch", coords: [0.72, 0.18, 204.5] }
+```
+
+## Signature
+
+```ts
+function random<M ColorModel="ColorModel" extends>(
+    options?: RandomOptions<M>
+): ColorData;
+
+```
+
+### Parameters
+
+| Parameter | Type               | Description                                                                                                        |
+| --------- | ------------------ | ------------------------------------------------------------------------------------------------------------------ |
+| `options` | `RandomOptions<M>` | Optional configuration object to restrict models, limit channel bounds, apply biases, or set normal distributions. |
+
+### Options (`RandomOptions<M>`)
+
+| Option      | Type                                                                        | Description                                                                                                                       |
+| ----------- | --------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `model`     | `M`                                                                         | The target color model (e.g., `"rgb"`, `"hsl"`, `"oklch"`). If omitted, a registered model is chosen at random.                   |
+| `limits`    | `Partial<Record<Component<M>, [number \| undefined, number \| undefined]>>` | Custom min/max bounds for individual channels as `[min, max]`. Passing `undefined` for a bound preserves the default model limit. |
+| `bias`      | `Partial<Record<Component<M>, (x: number) => number>>`                      | Custom transformation functions `(x: number) => number` applied to the uniform `[0, 1]` random float before scaling.              |
+| `base`      | `Partial<Record<Component<M>, number>>`                                     | Mean ($\mu$) center value for normally distributed channel generation using the Box-Muller transform.                             |
+| `deviation` | `Partial<Record<Component<M>, number>>`                                     | Standard deviation ($\sigma$) for normally distributed channel generation.                                                        |
+
+### Returns
+
+A `ColorData` object containing the chosen or specified `model` and the calculated numeric `coords` array.
+
+## Behavior
+
+1. Uses `options.model` if specified; otherwise selects a random model key from `colorModels`.
+2. Validates that channel keys provided in `limits`, `bias`, `base`, or `deviation` match valid components for the specified model.
+3. If `base` or `deviation` is defined for a channel, uses the Box-Muller transform ($u, v \sim \text{Uniform}(0,1)$) to calculate $X = \mu + \sigma \sqrt{-2 \ln u} \cos(2\pi v)$. Otherwise, generates $r \sim \text{Uniform}(0, 1)$, applies `bias(r)` if provided, and scales $r$ across the channel bounds $[min, max]$.
+4. Wraps `hue` components into the range $[0, 360]$, and clamps non-hue components strictly to $[min, max]$.
+5. Rounds each channel coordinate based on the component's defined precision setting.
+
+## Usage Examples
+
+### Restricting to a Specific Model and Bounds
+
+Generate bright pastel colors in `hsl` by fixing high lightness and saturation ranges:
+
+```ts
+import { random } from "saturon/random";
+
+const pastel = random({
+    model: "hsl",
+    limits: {
+        s: [70, 90], // Saturation between 70% and 90%
+        l: [80, 95], // Lightness between 80% and 95%
+    },
+});
+```
+
+### Non-Linear Channel Biasing
+
+Bias random colors toward darker tones using a power curve bias:
+
+```ts
+import { random } from "saturon/random";
+
+const darkColor = random({
+    model: "rgb",
+    bias: {
+        r: (x) => Math.pow(x, 2),
+        g: (x) => Math.pow(x, 2),
+        b: (x) => Math.pow(x, 2),
+    },
+});
+```
+
+### Gaussian Randomness Around a Target Color
+
+Cluster random colors around a specific central color value using `base` and `deviation`:
+
+```ts
+import { random } from "saturon/random";
+
+// Generate variations centered around a mid-tone green in OKLCH
+const greenVariant = random({
+    model: "oklch",
+    base: { l: 0.6, c: 0.2, h: 140 },
+    deviation: { l: 0.05, c: 0.02, h: 10 },
+});
+```
+
+## Errors
+
+- Throws an `Error` if a channel key specified in `limits`, `bias`, `base`, or `deviation` does not exist on the target model.
+- Throws an `Error` if a limit tuple defines a `min` value strictly greater than its `max` value (`min > max`).
+- Throws an `Error` if an invalid component definition is encountered internally.

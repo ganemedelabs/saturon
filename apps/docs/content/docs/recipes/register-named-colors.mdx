@@ -1,0 +1,77 @@
+---
+title: Register Named Colors
+description: Learn how to add custom named colors to Saturon for easier color management.
+---
+
+## Implementation
+
+```ts title="src/index.ts"
+import { Color } from "saturon";
+
+Color.register("named-colors", [
+    { name: "Dusk Mint", value: [123, 167, 151] },
+    { name: "Twilight Coral", value: [220, 128, 144] },
+    { name: "Moonstone Blue", value: [115, 166, 213] },
+    { name: "Sunset Amber", value: [255, 183, 77] },
+    { name: "Forest Whisper", value: [34, 139, 97] },
+    { name: "Slate Blue Gray", value: [115, 124, 161] },
+    { name: "Nebula Violet", value: [138, 102, 255] },
+    { name: "Arctic Teal", value: [64, 222, 204] },
+    { name: "Amber Frost", value: [255, 196, 124] },
+    { name: "Solar Fern", value: [82, 161, 91] },
+    { name: "Crimson Drift", value: [214, 42, 84] },
+    { name: "Deep Canyon", value: [92, 56, 45] },
+    { name: "Electric Plum", value: [184, 59, 227] },
+    { name: "Ocean Cinder", value: [52, 92, 115] },
+    { name: "Aurora Gray", value: [182, 191, 204] },
+    { name: "Copper Dusk", value: [183, 106, 63] },
+    { name: "Emerald Mist", value: [98, 201, 166] },
+    { name: "Velvet Umber", value: [142, 82, 59] },
+    { name: "Starfield Blue", value: [79, 115, 214] },
+    { name: "Ivory Blush", value: [255, 235, 226] },
+    { name: "Lunar Gold", value: [245, 208, 78] },
+    { name: "Polar Rose", value: [250, 176, 203] },
+    { name: "Eclipse Indigo", value: [47, 48, 89] },
+    { name: "Cinder Green", value: [64, 120, 92] },
+    { name: "Cerulean Haze", value: [102, 154, 204] },
+    { name: "Blush Terracotta", value: [218, 132, 104] },
+    { name: "Frosted Jade", value: [153, 214, 191] },
+    { name: "Shadow Lilac", value: [176, 154, 204] },
+    { name: "Autumn Fern", value: [126, 153, 88] },
+    { name: "Midnight Copper", value: [104, 65, 47] },
+    { name: "Dusklight Mauve", value: [195, 160, 189] },
+    { name: "Deep Sandstone", value: [198, 160, 115] },
+    { name: "Ocean Quartz", value: [89, 147, 168] },
+    { name: "Solar Driftwood", value: [169, 136, 91] },
+    { name: "Glacial Mint", value: [182, 245, 228] },
+    { name: "Rose Cloud", value: [255, 204, 210] },
+    { name: "Celestial Bronze", value: [184, 142, 96] },
+    { name: "Verdant Mist", value: [142, 186, 142] },
+    { name: "Driftwood Gray", value: [154, 145, 132] },
+    { name: "Iron Orchid", value: [134, 90, 147] },
+    { name: "Morning Wheat", value: [238, 219, 180] },
+    { name: "Twilight Steel", value: [121, 130, 138] },
+    { name: "Crystalline Teal", value: [116, 222, 210] },
+    { name: "Molten Ruby", value: [230, 45, 85] },
+    { name: "Permafrost Blue", value: [142, 198, 227] },
+    { name: "Carmine Glow", value: [206, 63, 78] },
+    { name: "Dawn Citrine", value: [255, 214, 115] },
+    { name: "Horizon Slate", value: [102, 116, 128] },
+    { name: "Amberleaf Green", value: [154, 179, 78] },
+    { name: "Desert Lilac", value: [189, 154, 191] },
+    { name: "Shadow Clay", value: [122, 104, 92] },
+    { name: "Crushed Pearl", value: [239, 234, 225] },
+    { name: "Night Bloom", value: [93, 71, 118] },
+    { name: "Obsidian Blue", value: [42, 64, 102] },
+]);
+```
+
+## Usage
+
+```ts title="src/index.ts"
+console.log(Color.from("duskmint").to("hex-color")); // #7ba797
+console.log(new Color("rgb", [220, 128, 144]).to("named-color")); // twilightcoral
+console.log(Color.from("hsl(from moonstoneblue h s l)").toString()); // hsl(209 54 64)
+console.log(Color.from("sunsetamber").mix("forestwhisper").toString()); // rgb(145 161 87)
+console.log(Color.from("color-mix(in srgb, slatebluegray 50%, nebulaviolet 50%)").toString()); // rgb(127 113 208)
+```

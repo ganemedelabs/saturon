@@ -1,0 +1,124 @@
+---
+title: Creating Color Instances
+description: Learn how to instantiate Color objects using the Color constructor, static from() parser, and random() generator.
+---
+
+Saturon provides three dedicated ways to construct `Color` instances depending on your data source. Whether you are dealing with raw numerical coordinates, parsing complex CSS color strings, or generating programmatic colors for generative art, the `Color` class gives you a strongly typed, flexible entry point.
+
+## Direct Instantiation with `new Color()` [#constructor]
+
+The `Color` constructor allows you to build a color instance directly from a color model name and an array of numerical channel coordinates. This is the fastest and most memory-efficient path when working with known raw values.
+
+### Signature
+
+```ts
+new Color<M ColorModel extends>(model: M, coords?: ColorCoords): Color<M>
+```
+
+- `model`: A supported color model string (e.g., `"rgb"`, `"hsl"`, `"oklab"`, `"oklch"`, `"lab"`).
+- `coords`: An array of channel values (including an optional alpha value between `0` and `1`).
+
+### Example
+
+```ts
+import { Color } from "saturon";
+
+// Create an HSL color (Hue: 266°, Saturation: 87%, Lightness: 20%)
+const purple = new Color("hsl", [266, 87, 20]);
+
+// Create an OKLab color with alpha (L: 0.6, a: 0.1, b: -0.2, Alpha: 0.8)
+const translucent = new Color("oklab", [0.6, 0.1, -0.2, 0.8]);
+```
+
+---
+
+## String Parsing with `Color.from()` [#from]
+
+The static `Color.from()` method parses any CSS-compliant color string into a `Color` instance. Powered by Saturon's parser engine, it supports the complete CSS Color Module Level 4 and Level 5 specifications.
+
+### Signature
+
+```ts
+static from(input: string | ColorData): Color
+```
+
+### Supported Syntax Types
+
+- **Standard & Legacy CSS**: Hex (`#ff0000`), `rgb()`, `hsl()`, named colors (`"red"`, `"transparent"`).
+- **Modern CSS Spaces**: `oklab()`, `oklch()`, `lab()`, `lch()`, `color(display-p3 ...)` space notation.
+- **CSS Color Functionals**: `color-mix()`, `light-dark()`, system colors, and relative color syntax (`rgb(from var(--bg) r g b / 0.5)`).
+
+### Example
+
+```ts
+import { Color } from "saturon";
+
+// 1. Named colors & CSS standard formats
+const red = Color.from("red");
+console.log(red.to("rgb")); // rgb(255 0 0)
+console.log(red.toArray()); // [255, 0, 0, 1]
+
+// 2. CSS color-mix() functional strings
+const mixed = Color.from("color-mix(in hsl, red 30%, blue 70%)");
+console.log(mixed.to("hsl")); // hsl(276 100 50)
+
+// 3. Theme-aware light-dark() syntax
+const themeColor = Color.from("light-dark(skyblue, midnightblue)");
+console.log(themeColor.to("named-color")); // skyblue
+
+// Dynamically updating global configuration changes the parsed output
+Color.configure({ theme: "dark" });
+console.log(themeColor.to("named-color")); // midnightblue
+```
+
+---
+
+## Generative Colors with `Color.random()` [#random]
+
+The static `Color.random()` method generates random `Color` instances. It goes beyond simple `Math.random()` RGB values, allowing you to bound specific channels or bias sampling towards high/low saturation or lightness for UI components and generative art.
+
+### Signature
+
+```ts
+static random<M ColorModel="rgb" extends>(options?: RandomOptions<M>): Color<M>
+```
+
+### Options
+
+| Option      | Type                                   | Description                                                         |
+| ----------- | -------------------------------------- | ------------------------------------------------------------------- |
+| `model`     | `ColorModel`                           | Target color space to sample channels in (default: `"rgb"`).        |
+| `limits`    | `Partial<Record<Channel, [min, max]>>` | Restricts specific channel bounds to exact ranges.                  |
+| `bias`      | `number`                               | Shifts distribution towards higher (`> 1`) or lower (`< 1`) values. |
+| `deviation` | `number`                               | Controls Gaussian distribution spread when generating variations.   |
+
+### Example
+
+```ts
+import { Color } from "saturon";
+
+// Unconstrained random color in RGB
+const vibrant = Color.random();
+console.log(vibrant.to("rgb")); // e.g., rgb(123 45 89)
+
+// Constrained random pastel color using OKLCH bounds
+const pastel = Color.random({
+    model: "oklch",
+    limits: {
+        l: [0.75, 0.9], // High lightness (pastel base)
+        c: [0.05, 0.12], // Controlled chroma (avoids oversaturation)
+    },
+});
+
+console.log(pastel.to("oklch")); // e.g., oklch(0.82 0.08 240)
+```
+
+---
+
+## Summary: When to Use Which?
+
+| Method                     | Primary Use Case                                                | Performance      | Input Format                |
+| -------------------------- | --------------------------------------------------------------- | ---------------- | --------------------------- |
+| `new Color(model, coords)` | Low-level math, library integrations, raw numerical arrays.     | Fastest (Direct) | Model string + number array |
+| `Color.from(input)`        | Parsing user input, CSS files, design tokens, string variables. | Fast (Parsed)    | CSS string / Color object   |
+| `Color.random(options)`    | Generative graphics, UI placeholders, random theme accents.     | Fast (Generated) | Optional constraints object |

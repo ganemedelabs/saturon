@@ -1,0 +1,40 @@
+---
+title: Linear P3
+description: A recipe to register the Linear Display P3 color space in Saturon.
+---
+
+## Implementation
+
+```ts title="src/index.ts"
+import { Color } from "saturon";
+import { MATRICES } from "saturon/converters";
+
+/**
+ * @see {@link https://www.w3.org/TR/css-color-4/|CSS Color Module Level 4}
+ */
+Color.register("color-spaces", [
+    {
+        name: "display-p3-linear",
+        value: {
+            components: ["r", "g", "b"],
+            bridge: "xyz-d65",
+            toBridgeMatrix: MATRICES.P3_to_XYZD65,
+            fromBridgeMatrix: MATRICES.XYZD65_to_P3,
+        },
+    },
+]);
+```
+
+## Usage
+
+````ts title="src/index.ts"
+import { Color } from "saturon";
+
+const valid = Color.isValid("color(display-p3-linear 1 0 0)");
+console.log(valid); // true
+
+const color = new Color("display-p3-linear", [1, 0, 0]);
+const inGamut = color.inGamut("display-p3-linear");
+console.log(inGamut); // true
+```ss
+````

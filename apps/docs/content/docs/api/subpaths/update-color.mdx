@@ -1,0 +1,110 @@
+---
+title: saturon/updateColor
+description: Functional utility for creating updated color coordinate arrays through flexible mutation patterns.
+---
+
+The `saturon/updateColor` subpath provides the standalone `updateColor()` function, allowing you to derive modified coordinate arrays from an existing `ColorData` object without mutating the original data or instantiating the `Color` class.
+
+## `updateColor()` [#update-color]
+
+Takes a `ColorData` object and an update payload (an object mapping, updater function, or replacement array), returning a new array of modified numerical coordinates.
+
+```ts
+import { updateColor } from "saturon/updateColor";
+
+const original = { model: "rgb", coords: [255, 0, 0, 1] };
+
+// Update specific components using a partial object
+const modified = updateColor(original, { r: 128, b: 200 });
+console.log(modified); // [128, 0, 200, 1]
+```
+
+## Signature
+
+```ts
+function updateColor<M ColorModel="ColorModel" extends>(
+    data: ColorData,
+    values: ColorUpdateValues<M>
+): number[];
+
+```
+
+### Parameters
+
+| Parameter | Type                   | Description                                                                                        |
+| --------- | ---------------------- | -------------------------------------------------------------------------------------------------- |
+| `data`    | `ColorData`            | The source color object containing the target `model` and current `coords`.                        |
+| `values`  | `ColorUpdateValues<M>` | An update definition (partial key-value object, component updater function, or replacement array). |
+
+### Returns
+
+A new `number[]` array containing the updated channel coordinates, normalized and bound to the target model's channel rules.
+
+---
+
+## Update Patterns (`ColorUpdateValues`)
+
+The `values` parameter supports four distinct update formats:
+
+### 1. Partial Component Mapping
+
+Pass an object with static target values or individual modifier functions for specific channels. Unspecified channels remain untouched.
+
+```ts
+import { updateColor } from "saturon/updateColor";
+
+const data = { model: "hsl", coords: [180, 50, 50, 1] };
+
+// Static update
+const staticUpdate = updateColor(data, { l: 80 });
+
+// Functional component modifier
+const relativeUpdate = updateColor(data, {
+    s: (prev) => prev * 0.5,
+});
+```
+
+### 2. Functional Bulk Update
+
+Pass a function that receives an object of current component values and returns either a partial component object or a coordinate array.
+
+```ts
+const data = { model: "rgb", coords: [100, 150, 200, 1] };
+
+// Return partial component changes based on existing state
+const darkened = updateColor(data, ({ r, g, b }) => ({
+    r: r * 0.8,
+    g: g * 0.8,
+    b: b * 0.8,
+}));
+```
+
+### 3. Array Replacement
+
+Pass an array containing replacement channel values. Use `undefined` for positions that should retain their original coordinate value.
+
+```ts
+const data = { model: "rgb", coords: [255, 100, 50, 1] };
+
+// Replace red and blue while leaving green unchanged
+const updated = updateColor(data, [128, undefined, 200]);
+```
+
+### 4. Functional Array Target
+
+Pass a function that consumes the current component object and returns a full or partial coordinate array.
+
+```ts
+const data = { model: "hsl", coords: [200, 80, 60, 1] };
+
+// Derive a new coordinate tuple dynamically
+const tuple = updateColor(data, ({ h, s, l }) => [h + 30, s, l]);
+```
+
+---
+
+## Behavior
+
+1. Never mutates the source `data.coords` array; operates on a clone and returns a fresh coordinate array.
+2. Applies `normalizeComponentValue` to incoming inputs to ensure coordinates conform to expected model definitions (e.g., percentages, degrees, or explicit bounds).
+3. Automatically ensures alpha channel stability across all update patterns, preserving existing transparency or defaulting to `1` if absent.

@@ -1,0 +1,169 @@
+---
+title: Getting Started
+icon: Rocket
+description: Introduction to Saturon, installation instructions, and basic usage examples
+---
+
+import { Cpu, Utensils, CodeXml, BookOpen } from "lucide-react";
+
+Saturon is a JavaScript color engine that's flexible, precise, and fully compatible with the [CSS Color Module Levels 4 & 5](https://www.w3.org/TR/css-color-5/). It helps developers build dynamic themes, design systems, and accessible interfaces — all with complete control over color logic and representation.
+
+What makes Saturon truly stand out is its grammar-aware color parser. It understands the entire CSS `<color>` syntax — including modern and experimental formats like `color-mix()` and relative colors (e.g. `hsl(from rebeccapurple h calc(s / 2) l)`).
+
+## Installation
+
+You can install Saturon via npm or use it directly in browsers through a CDN.
+
+### Option 1 — Using npm [#npm]
+
+Ideal for Node.js, React, Vue, Svelte, or any modern JavaScript framework.
+
+<CodeBlockTabs defaultValue="npm">
+    <CodeBlockTabsList>
+        <CodeBlockTabsTrigger value="npm">npm</CodeBlockTabsTrigger>
+        <CodeBlockTabsTrigger value="pnpm">pnpm</CodeBlockTabsTrigger>
+        <CodeBlockTabsTrigger value="yarn">yarn</CodeBlockTabsTrigger>
+    </CodeBlockTabsList>
+
+    <CodeBlockTab value="npm">
+        ```bash
+        npm install saturon
+        ```
+    </CodeBlockTab>
+
+    <CodeBlockTab value="pnpm">
+        ```bash
+        pnpm add saturon
+        ```
+    </CodeBlockTab>
+
+    <CodeBlockTab value="yarn">
+        ```bash
+        yarn add saturon
+        ```
+    </CodeBlockTab>
+
+</CodeBlockTabs>
+
+Then import the `Color` class in your JavaScript or TypeScript file:
+
+```ts title="src/index.ts"
+import { Color } from "saturon";
+
+const color = Color.from("hsl(50 100% 30%)").to("rgb");
+console.log(color); // rgb(153 128 0)
+```
+
+### Option 2 — Using a CDN [#cdn]
+
+You can also load Saturon directly in the browser:
+
+<CodeBlockTabs defaultValue="unpkg">
+    <CodeBlockTabsList>
+        <CodeBlockTabsTrigger value="unpkg">unpkg</CodeBlockTabsTrigger>
+        <CodeBlockTabsTrigger value="jsDelivr">jsDelivr</CodeBlockTabsTrigger>
+        <CodeBlockTabsTrigger value="Skypack">Skypack</CodeBlockTabsTrigger>
+    </CodeBlockTabsList>
+
+    <CodeBlockTab value="unpkg">
+        ```html
+        <script src="https://unpkg.com/saturon@latest/dist/index.umd.js"></script>
+        ```
+    </CodeBlockTab>
+
+    <CodeBlockTab value="jsDelivr">
+        ```html
+        <script src="https://cdn.jsdelivr.net/npm/saturon@latest/dist/index.umd.js"></script>
+        ```
+    </CodeBlockTab>
+
+    <CodeBlockTab value="Skypack">
+        ```html
+        <script type="module">import {Color} from "https://cdn.skypack.dev/saturon@latest";</script>
+        ```
+    </CodeBlockTab>
+
+</CodeBlockTabs>
+
+---
+
+## Usage Example
+
+Once the script is included, you can immediately use the `Color` API:
+
+<CodeBlockTabs defaultValue="unpkg">
+
+    <CodeBlockTabsList>
+        <CodeBlockTabsTrigger value="unpkg">unpkg</CodeBlockTabsTrigger>
+        <CodeBlockTabsTrigger value="jsDelivr">jsDelivr</CodeBlockTabsTrigger>
+        <CodeBlockTabsTrigger value="Skypack">Skypack</CodeBlockTabsTrigger>
+    </CodeBlockTabsList>
+
+    <CodeBlockTab value="unpkg">
+        ```html
+        <script>
+            const { Color } = Saturon;
+            const color = Color.from("hsl(50 100% 30%)").to("rgb");
+            console.log(color); // rgb(153 128 0)
+        </script>
+        ```
+    </CodeBlockTab>
+
+    <CodeBlockTab value="jsDelivr">
+        ```html
+        <script>
+            const { Color } = Saturon;
+            const color = Color.from("hsl(50 100% 30%)").to("rgb");
+            console.log(color); // rgb(153 128 0)
+        </script>
+        ```
+    </CodeBlockTab>
+
+    <CodeBlockTab value="Skypack">
+        ```html
+        <script type="module">
+            import { Color } from "https://cdn.skypack.dev/saturon@latest";
+            const color = Color.from("hsl(50 100% 30%)").to("rgb");
+            console.log(color); // rgb(153 128 0)
+        </script>
+        ```
+    </CodeBlockTab>
+
+</CodeBlockTabs>
+
+<Callout type="idea" title="Tip">
+    For production, replace `@latest` with a specific version (e.g. `@1.0.0`) to ensure predictable builds.
+</Callout>
+
+---
+
+## What's Next?
+
+Now that you have Saturon installed and running, explore the rest of the documentation to dive deeper into the engine:
+
+<Cards>
+    <Card
+        title="API Reference"
+        description="Discover the complete API surface of Saturon, including the primary Color class and entry-point utility modules."
+        href="/docs/api"
+        icon={<CodeXml className="text-blue-500 dark:text-blue-400" />}
+    />
+    <Card
+        title="Guides & Tutorials"
+        description="Explore step-by-step tutorials and practical tips to master Saturon."
+        href="/docs/guides"
+        icon={<BookOpen className="text-emerald-500 dark:text-emerald-400" />}
+    />
+    <Card
+        title="Recipes"
+        description="Browse practical examples, snippet patterns, and common use cases."
+        href="/docs/recipes"
+        icon={<Utensils className="text-amber-500 dark:text-amber-400" />}
+    />
+    <Card
+        title="Architecture"
+        description="Understand how the grammar-aware parser and conversion engine work under the hood."
+        href="/docs/architecture"
+        icon={<Cpu className="text-red-500 dark:text-red-400" />}
+    />
+</Cards>

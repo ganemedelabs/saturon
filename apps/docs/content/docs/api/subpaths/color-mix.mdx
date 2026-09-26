@@ -1,0 +1,101 @@
+---
+title: saturon/colorMix
+description: Statically mix multiple colors by percentages, replicating the exact W3C behavior of the CSS color-mix() function.
+---
+
+The `saturon/colorMix` subpath provides the core engine logic for blending multiple colors together. It strictly follows the W3C CSS Color Level 5 specification, handling percentage distribution, alpha premultiplication, and cylindrical hue interpolation.
+
+## `mixColors()` [#mix-colors]
+
+Mixes an array of colors and their respective weights into a single raw coordinate array within a target color space.
+
+```ts
+import { mixColors } from "saturon/colorMix";
+```
+
+### Signature
+
+```ts
+function mixColors<M ColorModel="oklab" extends>(
+    colors: MixItem[],
+    options?: MixOptions<M>
+): number[];
+```
+
+### Parameters
+
+| Parameter | Type         | Description                                                             |
+| --------- | ------------ | ----------------------------------------------------------------------- |
+| `colors`  | `MixItem[]`  | An array of objects containing raw color data and optional percentages. |
+| `options` | `MixOptions` | Configuration options for the color space and hue interpolation path.   |
+
+### Options (`MixOptions`)
+
+| Option | Type                     | Default     | Description                                                                                                    |
+| ------ | ------------------------ | ----------- | -------------------------------------------------------------------------------------------------------------- |
+| `in`   | `ColorModel`             | `"oklab"`   | The target color space where the mixing math is performed.                                                     |
+| `hue`  | `HueInterpolationMethod` | `"shorter"` | Hue path strategy when mixing in cylindrical spaces (`"shorter"`, `"longer"`, `"increasing"`, `"decreasing"`). |
+
+### Returns
+
+A numeric array (`number[]`) representing the fully mixed color coordinates and alpha channel in the specified target color model.
+
+## Behavior
+
+1. Distributes missing percentages evenly from the remaining share. If the total sum of provided percentages falls below `1` (100%), the missing weight acts as transparent and scales down the final alpha channel via an alpha multiplier. If the total sum exceeds `1`, it scales the weights proportionally to equal `1`.
+2. Handles `NaN` channel inheritance. When a color lacks a channel (such as an achromatic hue), it adopts the value from the other color(s) in the mix to prevent math errors.
+3. Premultiplies colors by their alpha channels before mixing to ensure perceptually accurate transparency blending.
+4. Applies the specified `HueInterpolationMethod` automatically when interpolating angular hue channels in models such as `lch`, `oklch`, `hsl`, or `hwb`.
+
+## Usage Example
+
+```ts
+import { mixColors } from "saturon/colorMix";
+
+const red = { model: "rgb", coords: [255, 0, 0, 1] };
+const blue = { model: "rgb", coords: [0, 0, 255, 1] };
+
+// Mix 30% Red and 70% Blue (remaining percentage inferred) in OKLCH
+const coords = mixColors([{ color: red, percentage: 0.3 }, { color: blue }], {
+    in: "oklch",
+    hue: "longer",
+});
+
+console.log(coords); // Array containing the mixed OKLCH values
+```
+
+## Related Types & Helpers [#types]
+
+The module also exports several internal types and math helpers used during the mixing process.
+
+### `MixItem`
+
+The object structure required for the `colors` array parameter.
+
+```ts
+type MixItem = {
+    color: ColorData; // { model: string, coords: number[] }
+    percentage?: number; // A float between 0 and 1 (e.g., 0.5 for 50%)
+};
+```
+
+### `HueInterpolationMethod`
+
+Valid string literals for hue pathing.
+
+```ts
+type HueInterpolationMethod = "shorter" | "longer" | "increasing" | "decreasing";
+```
+
+### Hue Math Utilities
+
+Exported utilities for calculating hue deltas manually if needed:
+
+- `hueDelta(a, b)`: Returns the shortest signed hue delta between two angles.
+- `hueDeltaLong(a, b)`: Returns the longer signed hue delta between two angles.
+- `interpHue(a, b, t, method)`: Returns the specific interpolated hue angle based on the `t` progress factor (0 to 1) and the requested `HueInterpolationMethod`.
+
+## Errors
+
+- Throws an `Error` if the `colors` array is empty (`"At least one color must be provided."`).
+- Throws an `Error` if `interpHue` receives an invalid or unsupported interpolation method.

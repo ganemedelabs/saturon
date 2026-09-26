@@ -1,0 +1,136 @@
+---
+title: JzAzBz
+description: A recipe to register the JzAzBz color function in Saturon.
+---
+
+## Implementation
+
+```ts title="src/index.ts"
+import { Color } from "saturon";
+
+function inverseMatrix(m: number[][]) {
+    const a = m;
+    const A = a[0][0],
+        B = a[0][1],
+        C = a[0][2];
+    const D = a[1][0],
+        E = a[1][1],
+        F = a[1][2];
+    const G = a[2][0],
+        H = a[2][1],
+        I = a[2][2];
+    const det = A * (E * I - F * H) - B * (D * I - F * G) + C * (D * H - E * G);
+    if (Math.abs(det) < 1e-12) throw new Error("Matrix singular");
+    const invDet = 1 / det;
+    const inv = [
+        [(E * I - F * H) * invDet, (C * H - B * I) * invDet, (B * F - C * E) * invDet],
+        [(F * G - D * I) * invDet, (A * I - C * G) * invDet, (C * D - A * F) * invDet],
+        [(D * H - E * G) * invDet, (B * G - A * H) * invDet, (A * E - B * D) * invDet],
+    ];
+    return inv;
+}
+
+const M_XYZ_TO_LMS = [
+    [0.41478972, 0.579999, 0.014648],
+    [-0.20151, 1.120649, 0.0531008],
+    [-0.0166008, 0.2648, 0.6684799],
+];
+
+const M_LMS_P_TO_IZAZBZ = [
+    [0.5, 0.5, 0.0],
+    [3.524, -4.066708, 0.542708],
+    [0.199076, 1.096799, -1.295875],
+];
+
+const N = 4096;
+
+const m1 = 2610 / 16384;
+const m2 = (2523 / N) * 128;
+const c1 = 3424 / N;
+const c2 = (2413 / N) * 32;
+const c3 = (2392 / N) * 32;
+
+const b = 1.15;
+const g = 0.66;
+const d = -0.56;
+const d_0 = 1.6295499532821566e-11;
+
+/**
+ * @see {@link https://www.w3.org/TR/css-color-hdr-1/|CSS Color HDR Module Level 1}
+ * @see {@link https://opg.optica.org/oe/fulltext.cfm?uri=oe-25-13-15131|Perceptually uniform color space for image signals including high dynamic range and wide gamut}
+ */
+Color.register("color-models", [
+    {
+        name: "jzazbz",
+        value: {
+            components: {
+                jz: { index: 0, value: [0, 1], precision: 5 },
+                az: { index: 1, value: [-1, 1], precision: 5 },
+                bz: { index: 2, value: [-1, 1], precision: 5 },
+                alpha: { index: 3, value: [0, 1], precision: 3 },
+            },
+            bridge: "xyz-d65",
+            toBridge: ([Jz, az, bz]: number[]): number[] => {
+                const st2084_forward = (E: number) => {
+                    if (E <= 0) return 0;
+                    const Em1 = Math.pow(E, 1 / m2);
+                    const top = Math.max(Em1 - c1, 0);
+                    const den = c2 - c3 * Em1;
+                    if (den <= 0) return 0;
+                    return Math.pow(top / den, 1 / m1);
+                };
+                const M_LMS_TO_XYZ = inverseMatrix(M_XYZ_TO_LMS);
+                const M_IZAZBZ_TO_LMS_P = inverseMatrix(M_LMS_P_TO_IZAZBZ);
+                const Jz_plus_d0 = Jz + d_0;
+                const Iz = Jz_plus_d0 / (1 + d - d * Jz_plus_d0);
+                const LMS_p = multiplyMatrices(M_IZAZBZ_TO_LMS_P, [Iz, az, bz]);
+                const scale = 10000;
+                const LMS = LMS_p.map((e) => scale * st2084_forward(e));
+                const XYZp = multiplyMatrices(M_LMS_TO_XYZ, LMS);
+                const Xp = XYZp[0],
+                    Yp = XYZp[1],
+                    Zp = XYZp[2];
+                const Z = Zp;
+                const X = (Xp + (b - 1) * Z) / b;
+                const Y = (Yp + (g - 1) * X) / g;
+                return [X, Y, Z];
+            },
+            fromBridge: ([X, Y, Z]: number[]): number[] => {
+                const st2084_inverse = (Y: number) => {
+                    if (Y <= 0) return 0;
+                    const Ym1 = Math.pow(Y, m1);
+                    const num = c1 + c2 * Ym1;
+                    const den = 1 + c3 * Ym1;
+                    return Math.pow(num / den, m2);
+                };
+                const Xp = b * X - (b - 1) * Z;
+                const Yp = g * Y - (g - 1) * X;
+                const Zp = Z;
+                const LMS = multiplyMatrices(M_XYZ_TO_LMS, [Xp, Yp, Zp]);
+                const scale = 10000;
+                const LMS_p = LMS.map((v) => st2084_inverse(Math.max(v / scale, 0)));
+                const IzAzBz = multiplyMatrices(M_LMS_P_TO_IZAZBZ, LMS_p);
+                const Iz = IzAzBz[0];
+                const az = IzAzBz[1];
+                const bz = IzAzBz[2];
+                const Jz = ((1 + d) * Iz) / (1 + d * Iz) - d_0;
+                return [Jz, az, bz];
+            },
+        },
+    },
+]);
+```
+
+## Usage
+
+```ts title="src/index.ts"
+import { Color } from "saturon";
+
+const validJzazbz = Color.isValid("jzazbz(0.3 0.1 -0.6)");
+console.log(validJzazbz); // true
+
+const validColorMix = Color.isValid("color-mix(in jzazbz, purple, yellow)");
+console.log(validColorMix); // true
+
+console.log(Color.from("green").to("jzazbz"));
+```

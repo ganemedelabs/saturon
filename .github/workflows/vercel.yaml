@@ -1,0 +1,70 @@
+# ==============================================================================
+# VERCEL DEPLOYMENT WORKFLOW SETUP INSTRUCTIONS
+# ==============================================================================
+# Since this repository belongs to a GitHub organization and Vercel doesn't provide
+# free deployment for repositories owned by organizations, this action deploys
+# manually when the version in `packages/saturon/package.json` or
+# `apps/docs/package.json` changes.
+#
+# SETUP INSTRUCTIONS FOR MONOREPO:
+# 1. Install the Vercel CLI locally: `npm i -g vercel`
+# 2. Open PowerShell, navigate to the docs app folder: `cd apps/docs`
+# 3. Run `vercel` and follow the prompts to set up the project. When asked for a
+#    deployment scope, select your personal account.
+# 4. After setup, the CLI creates a `.vercel/project.json` file inside `apps/docs`
+#    containing your `orgId` and `projectId`.
+# 5. Generate a Vercel Account Token at https://vercel.com/account/tokens.
+# 6. Add the following repository secrets to your GitHub repo (`ganemedelabs/saturon`):
+#    - `ORG_ID` (from apps/docs/.vercel/project.json -> orgId)
+#    - `PROJECT_ID` (from apps/docs/.vercel/project.json -> projectId)
+#    - `VERCEL_TOKEN` (generated from your Vercel Account settings)
+# ==============================================================================
+
+name: Vercel Deployment Workflow
+
+on:
+    push:
+        branches:
+            - main
+    pull_request:
+        branches:
+            - main
+
+jobs:
+    build_and_deploy:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  fetch-depth: 2
+
+            - name: Check version change
+              id: version_check
+              run: |
+                  if git diff HEAD~1 HEAD -- packages/saturon/package.json | grep -E '"version":' || \
+                     git diff HEAD~1 HEAD -- apps/docs/package.json | grep -E '"version":'; then
+                    echo "version_changed=true" >> $GITHUB_ENV
+                  else
+                    echo "version_changed=false" >> $GITHUB_ENV
+                  fi
+
+            - name: Exit if no version change
+              if: env.version_changed == 'false'
+              run: echo "No version change detected. Skipping deployment." && exit 0
+
+            - name: Deploy to Vercel
+              if: env.version_changed == 'true'
+              uses: amondnet/vercel-action@v20
+              id: vercel-deploy
+              with:
+                  vercel-token: ${{ secrets.VERCEL_TOKEN }}
+                  github-token: ${{ secrets.GITHUB_TOKEN }}
+                  vercel-args: ${{ github.event_name == 'push' && '--prod' || '' }}
+                  vercel-org-id: ${{ secrets.ORG_ID }}
+                  vercel-project-id: ${{ secrets.PROJECT_ID }}
+                  working-directory: apps/docs
+
+            - name: Preview URL
+              if: ${{ github.event_name == 'pull_request' }}
+              run: |
+                  echo "Preview URL: ${{ steps.vercel-deploy.outputs.preview-url }}"

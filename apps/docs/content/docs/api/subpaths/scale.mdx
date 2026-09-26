@@ -1,0 +1,80 @@
+---
+title: saturon/scale
+description: Generate discrete color palettes by sampling evenly across multi-stop color interpolations.
+---
+
+The `saturon/scale` subpath provides the `scale()` function, which creates an array of coordinate arrays (a color palette) by sampling evenly across an interpolated sequence of colors.
+
+## `scale()` [#scale]
+
+Accepts an array of base colors and samples them at equal intervals across a defined number of discrete steps using `interpolate()`.
+
+```ts
+import { scale } from "saturon/scale";
+
+const red = { model: "rgb", coords: [255, 0, 0, 1] };
+const blue = { model: "rgb", coords: [0, 0, 255, 1] };
+
+// Generate a 5-step palette between red and blue
+const palette = scale([red, blue], { steps: 5, in: "oklab" });
+```
+
+## Signature
+
+```ts
+function scale<M ColorModel="oklab" extends>(
+    colors: ColorData[],
+    options?: ScaleOptions<M>
+): number[][];
+
+```
+
+### Parameters
+
+| Parameter | Type              | Description                                                                     |
+| --------- | ----------------- | ------------------------------------------------------------------------------- |
+| `colors`  | `ColorData[]`     | An array of at least 2 raw `ColorData` objects representing the palette stops.  |
+| `options` | `ScaleOptions<M>` | Configuration options specifying step counts, target color space, and hue path. |
+
+### Options (`ScaleOptions`)
+
+Extends `MixOptions`.
+
+| Option  | Type               | Default     | Description                                                                                                        |
+| ------- | ------------------ | ----------- | ------------------------------------------------------------------------------------------------------------------ |
+| `steps` | `number`           | `5`         | The total number of discrete color steps to generate (minimum `2`).                                                |
+| `in`    | `ColorModel`       | `"oklab"`   | The target color space where interpolation takes place.                                                            |
+| `hue`   | `HueInterpolation` | `"shorter"` | Hue path strategy when interpolating cylindrical spaces (`"shorter"`, `"longer"`, `"increasing"`, `"decreasing"`). |
+
+### Returns
+
+An array of coordinate arrays (`number[][]`), where each sub-array contains the calculated channel components for that step along the palette.
+
+## Behavior
+
+1. Checks that `steps` is at least `2` (and that `colors` contains at least 2 stops via `interpolate()`).
+2. Initializes an internal multi-stop color interpolator via `interpolate(colors, mixOptions)`.
+3. Computes normalized step scalar points $t = \frac{i}{\text{steps} - 1}$ for $i \in [0, \text{steps} - 1]$ and extracts the coordinate values at each interval.
+
+## Usage Example
+
+```ts
+import { scale } from "saturon/scale";
+
+const c1 = { model: "rgb", coords: [255, 0, 0, 1] };
+const c2 = { model: "rgb", coords: [255, 255, 0, 1] };
+const c3 = { model: "rgb", coords: [0, 0, 255, 1] };
+
+// Generate a 7-step palette in LCH color space
+const lchPalette = scale([c1, c2, c3], {
+    steps: 7,
+    in: "lch",
+    hue: "shorter",
+});
+
+console.log(lchPalette.length); // 7
+```
+
+## Errors
+
+- Throws an `Error` if `steps < 2` or if `colors` array contains fewer than 2 elements.

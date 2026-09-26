@@ -1,0 +1,170 @@
+---
+title: Register Plugins
+description: Find out how to create and register plugins to enhance Saturon's functionality.
+---
+
+## Implementation
+
+```ts title="src/plugins.ts"
+declare module "saturon" {
+    interface Color<M extends ColorModel = ColorModel> {
+        /**
+         * Applies a linear multiplier to lightness (HSL).
+         * 0 => black, 1 => no change, >1 => brighter.
+         */
+        brightness(multiplier: number): Color<"hsl">;
+
+        /**
+         * Adjusts contrast in RGB.
+         * 0 => mid-gray, 1 => no change, >1 => more contrast.
+         */
+        contrast(value: number): Color<"rgb">;
+
+        /**
+         * Converts toward grayscale (HSL desaturation).
+         * 0 => unchanged, 1 => fully grayscale.
+         */
+        grayscale(value: number): Color<"hsl">;
+
+        /**
+         * Rotates hue in degrees (HSL).
+         * 0 => unchanged.
+         */
+        hueRotate(angle: number): Color<"hsl">;
+
+        /**
+         * Inverts RGB channels with a linear blend.
+         * 0 => unchanged, 1 => fully inverted.
+         */
+        invert(value: number): Color<"rgb">;
+
+        /**
+         * Adjusts alpha (opacity).
+         * 0 => fully transparent, 1 => unchanged.
+         */
+        opacity(value: number): Color<"rgb">;
+
+        /**
+         * Multiplies saturation (HSL).
+         * 0 => completely unsaturated, 1 => unchanged, >1 => more saturated.
+         */
+        saturate(value: number): Color<"hsl">;
+
+        /**
+         * Applies a sepia-like effect (approximated in HSL).
+         * 0 => unchanged, 1 => fully sepia.
+         */
+        sepia(value: number): Color<"hsl">;
+    }
+}
+
+function clamp(value: number, min: number, max: number) {
+    return Math.min(Math.max(value, min), max);
+}
+
+/**
+ * Plugin: colorManipulationPlugin
+ * Adds brightness, contrast, grayscale, hueRotate, invert, opacity, saturate, sepia
+ */
+export function colorManipulationPlugin(ColorClass: typeof Color) {
+    ColorClass.prototype.brightness = function <M extends ColorModel>(this: Color<M>, multiplier: number) {
+        return this.in("hsl").with({
+            l: (l: number) => clamp(l * multiplier, 0, 100),
+        });
+    };
+
+    ColorClass.prototype.contrast = function <M extends ColorModel>(this: Color<M>, value: number) {
+        const mid = 128;
+        return this.in("rgb").with({
+            r: (r: number) => clamp((r - mid) * value + mid, 0, 255),
+            g: (g: number) => clamp((g - mid) * value + mid, 0, 255),
+            b: (b: number) => clamp((b - mid) * value + mid, 0, 255),
+        });
+    };
+
+    ColorClass.prototype.grayscale = function <M extends ColorModel>(this: Color<M>, value: number) {
+        return this.in("hsl").with({
+            s: (s: number) => clamp(s * (1 - value), 0, 100),
+        });
+    };
+
+    ColorClass.prototype.hueRotate = function <M extends ColorModel>(this: Color<M>, angle: number) {
+        return this.in("hsl").with({
+            h: (h: number) => {
+                const next = (h + angle) % 360;
+                return next < 0 ? next + 360 : next;
+            },
+        });
+    };
+
+    ColorClass.prototype.invert = function <M extends ColorModel>(this: Color<M>, value: number) {
+        return this.in("rgb").with({
+            r: (r: number) => clamp(r * (1 - value) + (255 - r) * value, 0, 255),
+            g: (g: number) => clamp(g * (1 - value) + (255 - g) * value, 0, 255),
+            b: (b: number) => clamp(b * (1 - value) + (255 - b) * value, 0, 255),
+        });
+    };
+
+    ColorClass.prototype.opacity = function <M extends ColorModel>(this: Color<M>, value: number) {
+        return this.in("rgb").with({
+            alpha: (a: number = 1) => clamp(a * value, 0, 1),
+        });
+    };
+
+    ColorClass.prototype.saturate = function <M extends ColorModel>(this: Color<M>, value: number) {
+        return this.in("hsl").with({
+            s: (s: number) => clamp(s * value, 0, 100),
+        });
+    };
+
+    ColorClass.prototype.sepia = function <M extends ColorModel>(this: Color<M>, value: number) {
+        const targetHue = 30;
+        const targetSat = 30;
+        return this.in("hsl").with({
+            h: (h: number) => {
+                const delta = ((targetHue - h + 540) % 360) - 180;
+                return (h + delta * value + 360) % 360;
+            },
+            s: (s: number) => clamp(s * (1 - value) + targetSat * value, 0, 100),
+            l: (l: number) => clamp(l * (1 - 0.15 * value) + l * (0.15 * value), 0, 100),
+        });
+    };
+}
+```
+
+## Usage
+
+```ts title="src/index.ts"
+import { Color } from "saturon";
+import { colorManipulationPlugin } from "./plugins.js";
+
+Color.use(colorManipulationPlugin);
+
+const c = Color.from("hsl(50 50 50)");
+
+// brightness (HSL lightness multiplier)
+c.brightness(0.5).toString(); // darker
+c.brightness(1.2).toString(); // brighter
+
+// contrast (RGB)
+Color.from("rgb(100 150 200)").contrast(0.5).toString();
+Color.from("rgb(100 150 200)").contrast(1.2).toString();
+
+// grayscale (HSL desaturation)
+Color.from("hsl(200 80 50)").grayscale(1).toString(); // fully gray
+
+// hueRotate
+Color.from("hsl(10 60 50)").hueRotate(180).toString();
+
+// invert
+Color.from("rgb(10 20 30)").invert(1).toString();
+
+// opacity
+Color.from("rgb(10 20 30)").opacity(0.5).toString();
+
+// saturate
+Color.from("hsl(200 40 50)").saturate(0.5).toString();
+
+// sepia
+Color.from("hsl(200 60 40)").sepia(1).toString();
+```

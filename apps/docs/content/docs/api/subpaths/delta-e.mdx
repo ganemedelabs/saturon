@@ -1,0 +1,105 @@
+---
+title: saturon/deltaE
+description: Compute perceptual color differences using CIE76, CIE94, CIEDE2000, and OKLab algorithms.
+---
+
+The `saturon/deltaE` subpath provides standalone functions for calculating the perceptual distance (Delta E / $\Delta E$) between two colors. Higher values indicate greater visual dissimilarity, where a value around `1.0` roughly corresponds to a Just Noticeable Difference (JND) for human vision under reference viewing conditions.
+
+## Functions
+
+### `deltaEOK()` [#delta-eok]
+
+Calculates color difference in the OKLab color space (Euclidean distance scaled by 100). Fast and highly reliable for general-purpose perceptual differences and modern displays.
+
+```ts
+import { deltaEOK } from "saturon/deltaE";
+
+const diff = deltaEOK(color1, color2);
+```
+
+### `deltaE76()` [#delta-e76]
+
+Calculates perceptual distance using the classic CIE76 formula ($\Delta E_{76}$), computed as simple Euclidean distance in the CIE $L^*a^*b^*$ color space.
+
+```ts
+import { deltaE76 } from "saturon/deltaE";
+
+const diff = deltaE76(color1, color2);
+```
+
+### `deltaE94()` [#delta-e94]
+
+Calculates color difference using the CIE94 standard ($\Delta E_{94}$), incorporating weighting factors for lightness ($k_L$), chroma ($k_C$), and hue ($k_H$) in CIE $L^*a^*b^*$ space.
+
+```ts
+import { deltaE94 } from "saturon/deltaE";
+
+const diff = deltaE94(color1, color2);
+```
+
+### `deltaE2000()` [#delta-e2000]
+
+Calculates perceptual distance using the industry-standard CIEDE2000 algorithm ($\Delta E_{00}$). It accounts for non-uniformities in CIE $L^*a^*b^*$ space, neutral color corrections, and rotation terms in the blue region.
+
+```ts
+import { deltaE2000 } from "saturon/deltaE";
+
+const diff = deltaE2000(color1, color2);
+```
+
+---
+
+## Common Signature
+
+All Delta E functions share the exact same parameter signature:
+
+```ts
+function deltaE(color1: ColorData, color2: ColorData): number;
+```
+
+### Parameters
+
+| Parameter | Type        | Description                                      |
+| --------- | ----------- | ------------------------------------------------ |
+| `color1`  | `ColorData` | The baseline color object (`{ model, coords }`). |
+| `color2`  | `ColorData` | The target color object (`{ model, coords }`).   |
+
+### Returns
+
+A non-negative `number` representing the perceptual distance scalar ($\Delta E$) between `color1` and `color2`.
+
+---
+
+## Behavior
+
+1. Both input colors are automatically converted to the required color model for calculation (`"oklab"` for `deltaEOK`, `"lab"` for `deltaE76`, `deltaE94`, and `deltaE2000`).
+2. Coordinates are extracted using `toArray()` with unclipped bounds (`fit: "none"`) to maintain numerical precision.
+3. Perceptual Metrics:
+
+- `deltaEOK`: Computes Euclidean distance $\sqrt{\Delta L^2 + \Delta a^2 + \Delta b^2} \times 100$ in OKLab space.
+- `deltaE76`: Computes Euclidean distance $\sqrt{\Delta L^2 + \Delta a^2 + \Delta b^2}$ in CIE $L^*a^*b^*$ space.
+- `deltaE94`: Evaluates lightness ($\Delta L$), chroma ($\Delta C$), and hue ($\Delta H$) weighting functions ($S_L, S_C, S_H$).
+- `deltaE2000`: Applies non-linear transformed chroma ($\bar{C}'$), hue rotation factors ($R_T$), and lightness/chroma/hue weighting scales.
+
+---
+
+## Usage Example
+
+```ts
+import { deltaEOK, deltaE2000, deltaE76 } from "saturon/deltaE";
+
+const colorA = { model: "rgb", coords: [255, 0, 0] };
+const colorB = { model: "rgb", coords: [240, 20, 10] };
+
+// OKLab perceptual distance
+const distanceOK = deltaEOK(colorA, colorB);
+console.log(distanceOK); // ~8.42
+
+// Industry standard CIEDE2000
+const distance2000 = deltaE2000(colorA, colorB);
+console.log(distance2000); // ~4.12
+
+// Classic CIE76
+const distance76 = deltaE76(colorA, colorB);
+console.log(distance76); // ~11.85
+```

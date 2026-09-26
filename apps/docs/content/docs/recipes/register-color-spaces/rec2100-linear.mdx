@@ -1,0 +1,39 @@
+---
+title: Linear Rec. 2100
+description: A recipe to register the Linear Rec. 2100 color space in Saturon.
+---
+
+## Implementation
+
+```ts title="src/index.ts"
+import { Color } from "saturon";
+import { MATRICES } from "saturon/converters";
+
+/**
+ * @see {@link https://www.w3.org/TR/css-color-hdr-1/|CSS Color HDR Module Level 1}
+ */
+Color.register("color-spaces", [
+    {
+        name: "rec2100-linear",
+        value: {
+            components: ["r", "g", "b"],
+            bridge: "xyz-d65",
+            toBridgeMatrix: MATRICES.REC2020_to_XYZD65,
+            fromBridgeMatrix: MATRICES.XYZD65_to_REC2020,
+        },
+    },
+]);
+```
+
+## Usage
+
+```ts title="src/index.ts"
+import { Color } from "saturon";
+
+const valid = Color.isValid("color(rec2100-linear 1 0 0)");
+console.log(valid); // true
+
+const color = new Color("rec2100-linear", [1, 0, 0]);
+const inGamut = color.inGamut("rec2100-linear");
+console.log(inGamut); // true
+```

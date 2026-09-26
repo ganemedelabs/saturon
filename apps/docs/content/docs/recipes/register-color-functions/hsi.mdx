@@ -1,0 +1,76 @@
+---
+title: HSI
+description: A recipe to register the HSI color function in Saturon.
+---
+
+## Implementation
+
+```ts title="src/index.ts"
+import { Color } from "saturon";
+
+/**
+ * @see {@link https://en.wikipedia.org/wiki/HSL_and_HSV|HSL and HSV}
+ */
+Color.register("color-models", [
+    {
+        name: "hsi",
+        value: {
+            components: {
+                h: { index: 0, value: "hue", precision: 0 },
+                s: { index: 1, value: "percentage", precision: 0 },
+                i: { index: 2, value: "percentage", precision: 0 },
+                alpha: { index: 3, value: [0, 1], precision: 3 },
+            },
+            bridge: "rgb",
+            toBridge: (hsi: number[]) => {
+                const [h, s, i] = hsi.map((c, i) => (i === 0 ? c : c / 100));
+                const H = (h % 360) * (Math.PI / 180);
+                let r, g, b;
+                if (H < (2 * Math.PI) / 3) {
+                    b = i * (1 - s);
+                    r = i * (1 + (s * Math.cos(H)) / Math.cos(Math.PI / 3 - H));
+                    g = 3 * i - (r + b);
+                } else if (H < (4 * Math.PI) / 3) {
+                    H -= (2 * Math.PI) / 3;
+                    r = i * (1 - s);
+                    g = i * (1 + (s * Math.cos(H)) / Math.cos(Math.PI / 3 - H));
+                    b = 3 * i - (r + g);
+                } else {
+                    H -= (4 * Math.PI) / 3;
+                    g = i * (1 - s);
+                    b = i * (1 + (s * Math.cos(H)) / Math.cos(Math.PI / 3 - H));
+                    r = 3 * i - (g + b);
+                }
+                return [r * 255, g * 255, b * 255];
+            },
+            fromBridge: (rgb: number[]) => {
+                const [r, g, b] = rgb.map((c) => c / 255);
+                const i = (r + g + b) / 3;
+                const min = Math.min(r, g, b);
+                const s = i === 0 ? 0 : 1 - min / i;
+                let h = 0;
+                if (s !== 0) {
+                    const num = 0.5 * (r - g + (r - b));
+                    const den = Math.sqrt((r - g) ** 2 + (r - b) * (g - b));
+                    let theta = Math.acos(Math.max(-1, Math.min(1, num / den)));
+                    if (b > g) theta = 2 * Math.PI - theta;
+                    h = (theta * 180) / Math.PI;
+                }
+                return [h, s * 100, i * 100];
+            },
+        },
+    },
+]);
+```
+
+```ts title="src/index.ts"
+import { Color } from "saturon";
+
+const validHsi = Color.isValid("hsi(from red h calc(s / 2) i)");
+console.log(validHsi); // true
+
+const validColorMix = Color.isValid("color-mix(in hsi increasing hue, white, cyan)");
+console.log(validColorMix); // true
+
+console.log(Color.from("gray").to("hsi"));
+```

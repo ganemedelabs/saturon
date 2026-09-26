@@ -1,0 +1,71 @@
+---
+title: saturon/config
+description: Manage and merge global runtime configuration settings for the Saturon engine.
+---
+
+The `saturon/config` subpath provides access to the global configuration object, internal caches, and the `configure()` function for updating engine-wide defaults at runtime.
+
+## Global `config` [#config]
+
+The central runtime configuration object storing theme preferences, system color maps, and default behaviors for color mapping and floating-point comparisons.
+
+```ts
+import { config } from "saturon/config";
+
+console.log(config.theme); // "light"
+console.log(config.defaults.fit); // "clip"
+console.log(config.defaults.epsilon); // 0.00001
+```
+
+### Properties
+
+| Property           | Type                         | Description                                                                                                              |
+| ------------------ | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `theme`            | `"light" \| "dark"`          | The active theme environment for system color resolution.                                                                |
+| `systemColors`     | `Record<string, number[][]>` | Lookup table mapping system color names to color coordinate arrays.                                                      |
+| `defaults.fit`     | `FitMethod`                  | Default gamut fitting method used when out-of-bounds colors are formatted or mapped (e.g., `"clip"`, `"css-gamut-map"`). |
+| `defaults.epsilon` | `number`                     | Floating-point comparison threshold (`1e-5`) used for precision comparisons across color spaces.                         |
+
+## `configure()` [#configure]
+
+Deeply merges partial configuration updates into the global `config` object.
+
+```ts
+import { configure } from "saturon/config";
+
+// Update default fit method and epsilon threshold
+configure({
+    defaults: {
+        fit: "css-gamut-map",
+        epsilon: 1e-6,
+    },
+});
+
+// Switch engine theme mode
+configure({
+    theme: "dark",
+});
+```
+
+### Signature
+
+```ts
+function configure(options: Partial<Config>): void;
+```
+
+### Parameters
+
+| Parameter | Type              | Description                                                             |
+| --------- | ----------------- | ----------------------------------------------------------------------- |
+| `options` | `Partial<Config>` | A nested, partial configuration object containing properties to update. |
+
+## `cache` [#cache]
+
+A global `Map` instance used internally by Saturon to store and reuse calculated color values, parsing results, and gamut mapping outputs across operations.
+
+```ts
+import { cache } from "saturon/config";
+
+// Clear internal cache if needed during memory-sensitive workflows
+cache.clear();
+```

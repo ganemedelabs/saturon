@@ -1,0 +1,65 @@
+---
+title: saturon/interpolate
+description: Generate functions to interpolate across multi-stop color palettes in specific models.
+---
+
+# `interpolate()` [#interpolate]
+
+Creates an interpolation function that smoothly transitions across an ordered array of colors. The returned function takes a progress scalar `t` ranging from `0` to `1` and returns the raw coordinate array at that position.
+
+```ts
+import { interpolate } from "saturon/interpolate";
+```
+
+## Signature
+
+```ts
+function interpolate(colors: ColorData[], options: MixOptions): (t: number) => number[];
+```
+
+### Parameters
+
+| Parameter | Type          | Description                                                                    |
+| --------- | ------------- | ------------------------------------------------------------------------------ |
+| `colors`  | `ColorData[]` | An array of at least 2 raw `ColorData` objects representing the palette stops. |
+| `options` | `MixOptions`  | Configuration options for the color interpolation process.                     |
+
+### Options (`MixOptions`)
+
+| Option | Type               | Default     | Description                                                                                                        |
+| ------ | ------------------ | ----------- | ------------------------------------------------------------------------------------------------------------------ |
+| `in`   | `ColorModel`       | `"oklab"`   | The target color space where interpolation occurs.                                                                 |
+| `hue`  | `HueInterpolation` | `"shorter"` | Hue path strategy when interpolating cylindrical spaces (`"shorter"`, `"longer"`, `"increasing"`, `"decreasing"`). |
+
+### Returns
+
+A function `(t: number) => number[]` that accepts a scalar `t` between `0` and `1` (clamped automatically) and returns the calculated coordinate array for the given position.
+
+## Behavior
+
+1. Divides the `[0, 1]` range evenly across $N - 1$ adjacent pairs, where $N$ represents the total number of provided colors.
+2. Clamps input progress values `t < 0` to `0` and `t > 1` to `1`.
+3. Identifies the active pair segment for any given `t` and delegates the calculation to `mix()`.
+
+## Usage Example
+
+```ts
+import { interpolate } from "saturon/interpolate";
+
+const red = { model: "rgb", coords: [255, 0, 0] };
+const green = { model: "rgb", coords: [0, 255, 0] };
+const blue = { model: "rgb", coords: [0, 0, 255] };
+
+// Create interpolator in LCH space with shorter hue paths
+const ramp = interpolate([red, green, blue], {
+    in: "lch",
+    hue: "shorter",
+});
+
+// Sample raw coordinates at 25% along the gradient
+const coordsAtQuarter = ramp(0.25);
+```
+
+## Errors
+
+- Throws an `Error` if `colors.length < 2`.

@@ -1,0 +1,59 @@
+---
+title: Rec. 2100-PQ
+description: A recipe to register the Rec. 2100-PQ color space in Saturon.
+---
+
+## Implementation
+
+```ts title="src/index.ts"
+import { Color } from "saturon";
+import { MATRICES } from "saturon/converters";
+
+/**
+ * @see {@link https://www.w3.org/TR/css-color-hdr-1/|CSS Color HDR Module Level 1}
+ */
+Color.register("color-spaces", [
+    {
+        name: "rec2100-pq",
+        value: {
+            components: ["r", "g", "b"],
+            bridge: "xyz-d65",
+            toLinear: (c: number) => {
+                const ninv = 2 ** 14 / 2610;
+                const minv = 2 ** 5 / 2523;
+                const c1 = 3424 / 2 ** 12;
+                const c2 = 2413 / 2 ** 7;
+                const c3 = 2392 / 2 ** 7;
+                const x = Math.pow(Math.max(Math.pow(c, minv) - c1, 0) / (c2 - c3 * Math.pow(c, minv)), ninv);
+                const Yw = 203;
+                return (x * 10000) / Yw;
+            },
+            fromLinear: (c: number) => {
+                const Yw = 203;
+                const x = (c * Yw) / 10000;
+                const n = 2610 / 2 ** 14;
+                const m = 2523 / 2 ** 5;
+                const c1 = 3424 / 2 ** 12;
+                const c2 = 2413 / 2 ** 7;
+                const c3 = 2392 / 2 ** 7;
+                return Math.pow((c1 + c2 * Math.pow(x, n)) / (1 + c3 * Math.pow(x, n)), m);
+            },
+            toBridgeMatrix: MATRICES.REC2020_to_XYZD65,
+            fromBridgeMatrix: MATRICES.XYZD65_to_REC2020,
+        },
+    },
+]);
+```
+
+## Usage
+
+```ts title="src/index.ts"
+import { Color } from "saturon";
+
+const valid = Color.isValid("color(rec2100-pq 1 0 0)");
+console.log(valid); // true
+
+const color = new Color("rec2100-pq", [1, 0, 0]);
+const inGamut = color.inGamut("rec2100-pq");
+console.log(inGamut); // true
+```
