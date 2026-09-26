@@ -14,7 +14,10 @@
 # 4. After setup, the CLI creates a `.vercel/project.json` file inside `apps/docs`
 #    containing your `orgId` and `projectId`.
 # 5. Generate a Vercel Account Token at https://vercel.com/account/tokens.
-# 6. Add the following repository secrets to your GitHub repo (`ganemedelabs/saturon`):
+# 6. In the Vercel dashboard, go to your project's Settings -> General ->
+#    Root Directory, and set it to `apps/docs`. This workflow runs `vercel` from the
+#    repo root and relies on this setting to locate the app.
+# 7. Add the following repository secrets to your GitHub repo (`ganemedelabs/saturon`):
 #    - `ORG_ID` (from apps/docs/.vercel/project.json -> orgId)
 #    - `PROJECT_ID` (from apps/docs/.vercel/project.json -> projectId)
 #    - `VERCEL_TOKEN` (generated from your Vercel Account settings)
@@ -36,13 +39,23 @@ jobs:
         steps:
             - uses: actions/checkout@v4
               with:
-                  fetch-depth: 2
+                  fetch-depth: 0
 
             - name: Check version change
               id: version_check
               run: |
-                  if git diff HEAD~1 HEAD -- packages/saturon/package.json | grep -E '"version":' || \
-                     git diff HEAD~1 HEAD -- apps/docs/package.json | grep -E '"version":'; then
+                  BASE_SHA="${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}"
+
+                  # Fallback: if BASE_SHA is empty or all-zeros (e.g. first push to a new branch),
+                  # treat it as "no previous version to compare" -> force a deploy check to pass safely.
+                  if [ -z "$BASE_SHA" ] || [ "$BASE_SHA" = "0000000000000000000000000000000000000000" ]; then
+                    echo "No base commit found (likely first commit). Skipping version diff, treating as changed."
+                    echo "version_changed=true" >> $GITHUB_ENV
+                    exit 0
+                  fi
+
+                  if git diff "$BASE_SHA" HEAD -- packages/saturon/package.json | grep -E '"version":' || \
+                     git diff "$BASE_SHA" HEAD -- apps/docs/package.json | grep -E '"version":'; then
                     echo "version_changed=true" >> $GITHUB_ENV
                   else
                     echo "version_changed=false" >> $GITHUB_ENV
@@ -62,7 +75,7 @@ jobs:
                   vercel-args: ${{ github.event_name == 'push' && '--prod' || '' }}
                   vercel-org-id: ${{ secrets.ORG_ID }}
                   vercel-project-id: ${{ secrets.PROJECT_ID }}
-                  working-directory: apps/docs
+                  vercel-project-name: saturon
 
             - name: Preview URL
               if: ${{ github.event_name == 'pull_request' }}
