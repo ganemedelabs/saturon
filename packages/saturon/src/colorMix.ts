@@ -1,7 +1,6 @@
-import { evaluateCSSValue } from "./calc.js";
 import { convert } from "./convert.js";
 import { ColorModel, colorModels } from "./converters.js";
-import { extractToken } from "./parsers.js";
+import { evaluateComponent, extractToken } from "./parsers.js";
 import { parseNode, ParseNode, ColorData } from "./syntax.js";
 
 /** Specifies the method used for interpolating hue values during color mixing. */
@@ -112,7 +111,7 @@ export function parseColorMixFunction(node: ParseNode): ColorData {
         let colorNode: ParseNode | undefined;
 
         if (current.type === "<percentage>") {
-            const rawVal = evaluateCSSValue(String(current.value || ""), "percentage");
+            const rawVal = evaluateComponent(current, "percentage");
             percentage = rawVal !== undefined ? rawVal / 100 : undefined;
             i++;
             colorNode = children[i];
@@ -120,7 +119,7 @@ export function parseColorMixFunction(node: ParseNode): ColorData {
             colorNode = current;
             const nextNode = children[i + 1];
             if (nextNode?.type === "<percentage>") {
-                const rawVal = evaluateCSSValue(String(nextNode.value || ""), "percentage");
+                const rawVal = evaluateComponent(nextNode, "percentage");
                 percentage = rawVal !== undefined ? rawVal / 100 : undefined;
                 i++;
             }

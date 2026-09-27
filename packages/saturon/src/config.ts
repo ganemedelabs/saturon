@@ -1,6 +1,27 @@
 import { FitMethod } from "./fitMethods.js";
 import { systemColors } from "./systemColors.js";
 
+/** The rendering intent for a color profile, used by `device-cmyk()` and `@color-profile`. */
+export type RenderingIntent = "relative-colorimetric" | "absolute-colorimetric" | "perceptual" | "saturation";
+
+/**
+ * A registered `@color-profile` entry — used by `device-cmyk()` (under the
+ * reserved name `"device-cmyk"`) or by `color(--ident ...)` for author-defined profiles.
+ */
+export type ColorProfileEntry = {
+    /** The `src` descriptor — informational only, not fetched/parsed by the engine. */
+    src?: string;
+
+    /** The `rendering-intent` descriptor. Defaults to `"relative-colorimetric"` per spec. */
+    renderingIntent?: RenderingIntent;
+
+    /** The `components` descriptor — names the profile's own channel order. Informational only. */
+    components?: string[];
+
+    /** Converts normalized CMYK (`[0, 1]` each) to CIE Lab, for the given rendering intent. */
+    toLab: (cmyk: number[], intent: RenderingIntent) => number[]; // eslint-disable-line no-unused-vars
+};
+
 /** Represents the config object. */
 export type Config = {
     /** The theme of the application, either "light" or "dark". */
@@ -9,6 +30,12 @@ export type Config = {
     /** System colors for light and dark themes. */
     systemColors: {
         [key: string]: number[][];
+    };
+
+    /** Registered `@color-profile` entries. `"device-cmyk"` is reserved for `device-cmyk()`. */
+    colorProfiles: {
+        "device-cmyk"?: ColorProfileEntry;
+        [dashedIdent: string]: ColorProfileEntry | undefined;
     };
 
     /** Default options for the engine. */
@@ -29,6 +56,7 @@ export type Config = {
 export const config: Config = {
     theme: "light",
     systemColors,
+    colorProfiles: {},
     defaults: {
         fit: "clip",
         epsilon: 1e-5,

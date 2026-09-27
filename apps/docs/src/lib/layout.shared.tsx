@@ -16,16 +16,16 @@ export function baseOptions(): BaseLayoutProps {
         links: [
             { text: "Documentation", url: "/docs", type: "main", icon: <FileText /> },
             {
-                text: "Sponsor",
-                external: true,
-                url: "https://github.com/sponsors/yusefalmamari",
-                icon: <Heart />,
-            },
-            {
                 text: "npm",
                 external: true,
                 url: "https://www.npmjs.com/package/saturon",
                 icon: <Package />,
+            },
+            {
+                text: "Sponsor",
+                external: true,
+                url: "https://github.com/sponsors/yusefalmamari",
+                icon: <Heart />,
             },
         ],
     };

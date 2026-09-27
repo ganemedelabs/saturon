@@ -1,8 +1,9 @@
-import { evaluateCSSValue } from "./calc.js";
+import { parseCalcExpression, parseHue, parsePercent } from "./calc.js";
 import { parseColorMixFunction } from "./colorMix.js";
 import { config } from "./config.js";
 import { convert } from "./convert.js";
 import { ColorModel, ColorModelConverter, colorModels, colorSpaces, ComponentDefinition } from "./converters.js";
+import { resolveDeviceCmyk } from "./deviceCmyk.js";
 import { ColorData, parseNode, ParseNode } from "./syntax.js";
 import { normalizeComponentValue } from "./toArray.js";
 import { toObject } from "./toObject.js";
@@ -36,7 +37,33 @@ export function evaluateComponent(
     if (!node) return NaN;
 
     const token = extractToken(node);
-    return evaluateCSSValue(token, expectedType, base);
+
+    if (token === "none") return NaN;
+    if (token in base) return base[token];
+
+    const [min, max] = Array.isArray(expectedType) ? expectedType : expectedType === "percentage" ? [0, 100] : [0, 1];
+
+    if (/^-?(?:\d+|\d*\.\d+)$/.test(token)) {
+        return parseFloat(token);
+    }
+
+    if (token.endsWith("%") && /^-?(?:\d+|\d*\.\d+)%$/.test(token)) {
+        return parsePercent(token, expectedType, min, max);
+    }
+
+    if (/^-?(?:\d+|\d*\.\d+)(deg|rad|grad|turn)$/i.test(token)) {
+        return parseHue(token);
+    }
+
+    if (token.startsWith("calc(") && token.endsWith(")")) {
+        return parseCalcExpression(token.slice(5, -1), expectedType, base, min, max);
+    }
+
+    if (/^[a-zA-Z_-]+\(/.test(token)) {
+        return parseCalcExpression(token, expectedType, base, min, max);
+    }
+
+    throw new Error(`Unable to parse component token: ${token}`);
 }
 
 /**
@@ -235,15 +262,7 @@ export const parsers = (() => {
             const t = node.value as ParseNode[];
             const [c, m, y, k] = [t[2], t[4], t[6], t[8]].map(parseCmykComponent);
 
-            return {
-                model: "rgb",
-                coords: [
-                    (1 - (c * (1 - k) + k)) * 255,
-                    (1 - (m * (1 - k) + k)) * 255,
-                    (1 - (y * (1 - k) + k)) * 255,
-                    1,
-                ],
-            };
+            return resolveDeviceCmyk([c, m, y, k, 1]);
         },
 
         "<modern-device-cmyk-syntax>": (node) => {
@@ -268,15 +287,7 @@ export const parsers = (() => {
 
             const alphaMath = isNaN(alpha) ? alpha : Math.max(0, Math.min(1, alpha));
 
-            return {
-                model: "rgb",
-                coords: [
-                    (1 - (cMath * (1 - kMath) + kMath)) * 255,
-                    (1 - (mMath * (1 - kMath) + kMath)) * 255,
-                    (1 - (yMath * (1 - kMath) + kMath)) * 255,
-                    alphaMath,
-                ],
-            };
+            return resolveDeviceCmyk([cMath, mMath, yMath, kMath, alphaMath]);
         },
 
         "<color-mix()>": parseColorMixFunction,

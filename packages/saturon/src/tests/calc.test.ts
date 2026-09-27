@@ -1,4 +1,4 @@
-import { parsePercent, parseHue, evaluateCSSValue, parseCalcExpression } from "../calc.js";
+import { parsePercent, parseHue, parseCalcExpression } from "../calc.js";
 
 describe("CSS Color Calc Engine (W3C Level 4 Compliant)", () => {
     describe("parsePercent", () => {
@@ -31,24 +31,6 @@ describe("CSS Color Calc Engine (W3C Level 4 Compliant)", () => {
         it("converts turns to degrees", () => {
             expect(parseHue("0.5turn")).toBe(180);
             expect(parseHue("1turn")).toBe(360);
-        });
-    });
-
-    describe("evaluateCSSValue (Entrypoint)", () => {
-        it("resolves raw numbers and percentages", () => {
-            expect(evaluateCSSValue("123.45", [0, 255])).toBe(123.45);
-            expect(evaluateCSSValue("50%", [0, 255])).toBe(127.5);
-        });
-
-        it("evaluates root-level math functions seamlessly", () => {
-            expect(evaluateCSSValue("clamp(10, 50, 100)", [0, 100])).toBe(50);
-            expect(evaluateCSSValue("max(10%, 20%)", [0, 100])).toBe(20);
-        });
-
-        it("resolves relative context variables via base object", () => {
-            const base = { r: 100, g: 50, b: 25 };
-            expect(evaluateCSSValue("r", [0, 255], base)).toBe(100);
-            expect(evaluateCSSValue("calc(g * 2)", [0, 255], base)).toBe(100);
         });
     });
 

@@ -1,7 +1,6 @@
-import { Color } from "../Color";
-import { Component } from "../converters.js";
-import { FitMethod } from "../fitMethods.js";
-import { get } from "../getters.js";
+import { Color } from "../Color.js";
+import { type Component } from "../converters.js";
+import { type FitMethod } from "../fitMethods.js";
 
 describe("Color", () => {
     it("should define a Color instance in different ways", () => {
@@ -420,7 +419,7 @@ describe("Color", () => {
     });
 
     it("should generate 1000 random colors and validate their string output formats", () => {
-        const types = get("output-types").filter((t) => t !== "named-color");
+        const types = Color.get("output-types").filter((t) => t !== "named-color");
         expect(Array.isArray(types)).toBe(true);
         expect(types.length).toBeGreaterThan(0);
 
@@ -495,5 +494,50 @@ describe("Color", () => {
 
         expect(palette[2].model).toBe("srgb");
         expect(palette[2].coords).toEqual([1, 1, 1, 1]);
+    });
+
+    it("should configure device-cmyk to route through a registered profile's toLab with the correct rendering intent", () => {
+        const naive = Color.from("device-cmyk(0.5 0 0.6 0.1)");
+        expect(naive.model).toBe("srgb");
+        expect(naive.coords).toEqual([
+            1 - (0.5 * (1 - 0.1) + 0.1),
+            1 - (0 * (1 - 0.1) + 0.1),
+            1 - (0.6 * (1 - 0.1) + 0.1),
+            1,
+        ]);
+
+        const toLab = jest.fn(() => [50, 10, -10]);
+        Color.configure({
+            colorProfiles: {
+                "device-cmyk": {
+                    renderingIntent: "perceptual",
+                    toLab,
+                },
+            },
+        });
+
+        const resolved = Color.from("device-cmyk(0.5 0 0.6 0.1 / 0.8)");
+
+        expect(Color.config.colorProfiles["device-cmyk"]).toBeDefined();
+        expect(toLab).toHaveBeenCalledWith([0.5, 0, 0.6, 0.1], "perceptual");
+        expect(resolved.model).toBe("lab");
+        expect(resolved.coords).toEqual([50, 10, -10, 0.8]);
+
+        delete Color.config.colorProfiles["device-cmyk"];
+
+        const toLabDefaultIntent = jest.fn(() => [20, 0, 0]);
+        Color.configure({
+            colorProfiles: {
+                "device-cmyk": {
+                    toLab: toLabDefaultIntent,
+                },
+            },
+        });
+
+        const resolvedDefaultIntent = Color.from("device-cmyk(0 0 0 1)");
+
+        expect(toLabDefaultIntent).toHaveBeenCalledWith([0, 0, 0, 1], "relative-colorimetric");
+        expect(resolvedDefaultIntent.model).toBe("lab");
+        expect(resolvedDefaultIntent.coords).toEqual([20, 0, 0, 1]);
     });
 });

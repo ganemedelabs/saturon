@@ -1,0 +1,282 @@
+---
+title: Configuring device-cmyk() Color Profiles
+description: Register real ICC-backed color profiles so device-cmyk() produces accurate, print-ready color instead of a naive approximation.
+---
+
+No browser implements `device-cmyk()` — it depends on device-specific color profiles to convert CMYK ink values into accurate on-screen color, and without a registered profile there's no reliable way to do that conversion, so browser vendors have left it unimplemented. Saturon implements the full spec anyway: it falls back to the same naive $CMYK → RGB$ approximation the spec defines as its guaranteed baseline, and lets you register a real color profile to get accurate, print-ready conversion when you need it.
+
+This guide walks through how to register a profile and a complete real-world example of shipping print-accurate brand colors in a design system.
+
+## The Default: Naive Conversion
+
+Out of the box, `device-cmyk()` resolves using the same "naive" algorithm the CSS spec defines as its guaranteed fallback:
+
+```ts
+import { Color } from "saturon";
+
+const ink = Color.from("device-cmyk(0.75 0.2 0 0.1)");
+
+console.log(ink.model); // "rgb"
+console.log(ink.coords); // approximate RGB — no real printer/profile involved
+```
+
+This is fine for quick mockups, but it's not what a real printer will produce. The naive formula (`R = 1 - (C * (1 - K) + K)`, etc.) assumes an idealized ink space that no actual press, proofer, or printer characterization resembles. If you're building anything print-facing — packaging previews, a brand style guide, a proofing tool — you'll want a real profile.
+
+<Callout title="When you actually need this" type="info">
+    If your `device-cmyk()` colors are decorative or approximate (e.g. a demo, a quick prototype), the naive default is
+    genuinely fine — don't add profile complexity you don't need. Reach for a registered profile when the on-screen
+    color needs to match what a specific press or proofing device will output.
+</Callout>
+
+---
+
+## Registering a Profile
+
+A profile is just an object with a `toLab` function — Saturon doesn't parse ICC binaries itself, so you plug in whatever CMM (color management module) you're using. Register it under the reserved key `"device-cmyk"`:
+
+```ts
+import { Color } from "saturon";
+
+Color.configure({
+    colorProfiles: {
+        "device-cmyk": {
+            src: "https://example.org/Coated_Fogra39L_VIGC_300.icc",
+            renderingIntent: "relative-colorimetric",
+            components: ["c", "m", "y", "k"],
+            toLab: (cmyk, intent) => {
+                // your CMM call goes here — see the worked example below
+                return myCmm.cmykToLab(cmyk, { profile: "fogra39", intent });
+            },
+        },
+    },
+});
+
+const ink = Color.from("device-cmyk(0.75 0.2 0 0.1)");
+console.log(ink.model); // "lab" — now routed through your profile
+```
+
+Every `device-cmyk()` value parsed anywhere in your app — inline styles, design tokens, generated CSS — is now resolved through this profile automatically. You don't need to touch call sites.
+
+---
+
+## A Real-World Example: Print-Accurate Brand Colors
+
+Say you're building a design system for a print shop's web configurator. Customers pick brand colors on-screen and get a business-card preview, but the actual print run uses FOGRA39 (coated stock, common in Europe). You want the on-screen preview to match the eventual print as closely as a browser can show.
+
+<Callout title="Handling .icc files in JavaScript" type="info">
+    Saturon only expects a `toLab` function — it never touches raw ICC bytes.
+    Parsing the actual profile is a separate step, and you have two levels to
+    choose from depending on what you need:
+
+    1. **Full color transforms (what you need for `toLab`)** — [`lcms-wasm`](https://github.com/mattdesl/lcms-wasm)
+    is a WASM build of Little-CMS that runs in Node, browsers, and workers. It
+    loads a real `.icc` file and gives you an actual CMYK → Lab/XYZ transform,
+    not just metadata — this is what the example below uses.
+    2. **Metadata only (no color math)** — if you just need to read a profile's
+    header (name, intent, color space, copyright) without transforming any
+    colors, [`icc`](https://www.npmjs.com/package/icc) is a lightweight pure-JS
+    parser: `parse(fs.readFileSync("profile.icc"))` returns a plain object. It
+    won't get you a `toLab` on its own, but it's handy for validating or
+    inspecting a profile before you wire it up.
+
+    If you're in a server-side/Node environment and don't need this to run in
+    the browser, [`node-lcms`](https://github.com/danburzo/node-lcms) is another
+    option — a thin wrapper around Little-CMS's `transicc` CLI utility.
+
+</Callout>
+
+### 1. Load the ICC profile and build a transform
+
+```ts
+import { instantiate } from "lcms-wasm";
+import { readFile } from "fs/promises";
+
+const lcms = await instantiate();
+
+const fogra39Buf = await readFile("profiles/Coated_Fogra39L_VIGC_300.icc");
+const fogra39 = lcms.cmsOpenProfileFromMem(new Uint8Array(fogra39Buf), fogra39Buf.byteLength);
+const lab = lcms.cmsCreateLab4Profile();
+
+const TYPE_CMYK_FLT = (1 << 22) | (6 << 16) | (4 << 3) | 4;
+const TYPE_Lab_FLT = (1 << 22) | (10 << 16) | (3 << 3) | 4;
+const INTENT_RELATIVE_COLORIMETRIC = 1;
+
+const transform = lcms.cmsCreateTransform(fogra39, TYPE_CMYK_FLT, lab, TYPE_Lab_FLT, INTENT_RELATIVE_COLORIMETRIC, 0);
+```
+
+<Callout title="lcms-wasm doesn't export pixel-format constants" type="warn">
+    `TYPE_CMYK_FLT`, `TYPE_Lab_FLT`, and intent constants like `INTENT_RELATIVE_COLORIMETRIC` are LittleCMS's own C
+    macros — this package doesn't attach them to the returned module. Referencing `lcms.TYPE_CMYK_FLT` silently gives
+    you `undefined`, which `cmsCreateTransform` will accept without complaint and then fail later with a confusing error
+    from deep inside `cmsDoTransform`. Define the numeric pixel-format codes yourself from `lcms2.h`'s encoding (shown
+    below), and remember `cmsDoTransform(transform, input, size)` takes a required third argument for the pixel count.
+</Callout>
+
+### 2. Wrap it as a `toLab` function and register it
+
+```ts
+import { Color } from "saturon";
+
+Color.configure({
+    colorProfiles: {
+        "device-cmyk": {
+            src: "/profiles/Coated_Fogra39L_VIGC_300.icc",
+            renderingIntent: "relative-colorimetric",
+            components: ["c", "m", "y", "k"],
+            toLab: ([c, m, y, k]: number[]) => {
+                // third arg = pixel count (1 color -> 1)
+                const [L, a, b] = lcms.cmsDoTransform(transform, [c, m, y, k], 1);
+                return [L, a, b];
+            },
+        },
+    },
+});
+```
+
+### 3. Use it exactly like any other color
+
+```ts
+// The brand's primary ink, specified the way the print shop actually
+// specs it — as CMYK percentages, not a guessed RGB hex.
+const brandPrimary = Color.from("device-cmyk(0% 65% 92% 0%)"); // Pantone-ish orange
+const brandNeutral = Color.from("device-cmyk(0% 0% 0% 85%)"); // rich black
+
+console.log(brandPrimary.model); // "lab"
+console.log(brandPrimary.in("srgb").coords); // accurate on-screen preview
+```
+
+Now your on-screen swatch is derived from the same profile the print shop's RIP will use — not a generic approximation.
+
+---
+
+## Choosing a Rendering Intent
+
+If your profile supports multiple intents, `renderingIntent` decides which gamut-mapping table your `toLab` should consult:
+
+```ts
+Color.configure({
+    colorProfiles: {
+        "device-cmyk": {
+            renderingIntent: "perceptual", // vs the default "relative-colorimetric"
+            toLab: ([c, m, y, k], intent) => transform.run([c, m, y, k], { intent }),
+        },
+    },
+});
+```
+
+A rough guide for picking one:
+
+A rough guide for picking one:
+
+| Intent                            | Use it for                                                                                                                   | What happens to out-of-gamut colors                                                                                                                 | Watch out for                                                                                                                                 |
+| --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `relative-colorimetric` (default) | Logos, brand swatches, spot colors — anything where exact color match matters more than smooth gradients                     | Pushed to the nearest edge of the destination gamut; colors already reproducible on that medium are left untouched, anchored to its own white point | Usually paired with black-point compensation so shadows don't crush when source/target darks differ                                           |
+| `perceptual`                      | Photographic imagery — preserves overall look even if individual values shift                                                | The whole image is gently reshaped, in-gamut colors included, to keep transitions smooth rather than clipped                                        | Reshaping behavior isn't tightly standardized across older (v2) profiles — test a given profile pair together rather than assuming they agree |
+| `absolute-colorimetric`           | Proofing against a specific paper's white point (rare outside dedicated proofing tools)                                      | Same edge-clipping as relative, but measured against a fixed theoretical reference white rather than adapting to the medium's own white             | No white- or black-point adaptation at all, so a duller paper stock can visibly wash out highlights                                           |
+| `saturation`                      | Charts/graphics where vivid, pure color matters more than exact hue accuracy (uncommon; check your profile supports it well) | Moved just inside the gamut boundary at matching saturation, even if hue or lightness drifts slightly                                               | Hue/lightness accuracy is traded for chroma purity, and support varies a lot between profile vendors                                          |
+
+<Callout title="Not every toLab honors every intent" type="warn">
+    If your CMM only exposes one transform, `renderingIntent` is metadata your `toLab` can safely ignore — Saturon
+    always passes it through, but nothing forces your implementation to branch on it. Document this limitation for your
+    own consumers if that's the case.
+</Callout>
+
+---
+
+## Swapping or Resetting a Profile
+
+`Color.configure()` performs a deep merge, not a replace — so partially updating a profile only overrides the keys you pass:
+
+```ts
+Color.configure({
+    colorProfiles: { "device-cmyk": { renderingIntent: "perceptual" } },
+});
+
+// Later — this does NOT clear renderingIntent, it merges on top of it
+Color.configure({
+    colorProfiles: { "device-cmyk": { toLab: newToLab } },
+});
+```
+
+To fully swap a profile (e.g. switching press configurations between jobs), clear the entry first:
+
+```ts
+delete Color.config.colorProfiles["device-cmyk"];
+
+Color.configure({
+    colorProfiles: { "device-cmyk": { toLab: swopToLab } }, // SWOP for a US print run
+});
+```
+
+---
+
+## Verifying Your Setup
+
+A quick sanity check worth keeping in your test suite:
+
+```ts
+import { Color } from "saturon";
+
+it("resolves device-cmyk through the registered print profile", () => {
+    Color.configure({
+        colorProfiles: {
+            "device-cmyk": { toLab: () => [50, 20, -10] },
+        },
+    });
+
+    const result = Color.from("device-cmyk(0 0.5 1 0)");
+
+    expect(result.model).toBe("lab");
+    expect(result.coords).toEqual([50, 20, -10, 1]);
+});
+```
+
+---
+
+## `colorProfiles` only wires up `device-cmyk()`
+
+It's tempting to assume `colorProfiles` in `configure()` is a general-purpose profile registry — but it isn't. The only key it actually does anything with is the reserved `"device-cmyk"` name. Registering anything else under it is silently inert:
+
+```ts
+// This will NOT make color(--custom-profile ...) work — nothing reads
+// arbitrary keys under colorProfiles other than "device-cmyk".
+Color.configure({
+    colorProfiles: {
+        "--custom-profile": {
+            renderingIntent: "relative-colorimetric",
+            components: ["c", "m", "y", "k"],
+            toLab: ([c, m, y, k]) => [...],
+        },
+    },
+});
+```
+
+`configure()` is for tuning behavior of things the engine already knows how to parse — `device-cmyk()` is a built-in CSS function, so `colorProfiles["device-cmyk"]` has a defined place to plug into. `color(--custom-profile ...)`, on the other hand, references a color **space** the engine has never heard of — `--custom-profile` isn't a keyword the parser recognizes, so there's no resolution path for `configure()` to hook into in the first place.
+
+### Registering a new color space instead
+
+If you want something like this to actually work:
+
+```css
+color(--custom-profile 35% 20% 8%)
+```
+
+you need to register `--custom-profile` as a real color space via `Color.register()`, not as a profile:
+
+```ts
+Color.register("color-spaces", [
+    {
+        name: "--custom-profile",
+        value: {
+            components: ["a", "b", "c", "alpha"],
+            bridge: "xyz",
+            toBridgeMatrix: [],
+            fromBridgeMatrix: [],
+        },
+    },
+]);
+```
+
+This is a different layer of the engine entirely: `colorProfiles` configures how a known function's ambiguous device-dependent values get resolved, while `Color.register("color-spaces", ...)` teaches the parser a new space exists at all — including its component names, its conversion matrices to/from a bridge space, and everything else needed for `color()` to accept it as a valid identifier.
+
+For the full picture — registering color spaces, custom syntaxes, formatters, and gamut-mapping methods — see [The Registry API](./registry).

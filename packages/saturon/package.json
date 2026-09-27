@@ -1,6 +1,6 @@
 {
     "name": "saturon",
-    "version": "0.4.1",
+    "version": "0.4.2",
     "description": "A runtime-extensible JavaScript library for parsing, converting, and manipulating colors with full CSS spec support.",
     "type": "module",
     "private": false,
@@ -62,6 +62,10 @@
         "./deltaE": {
             "import": "./dist/deltaE.js",
             "types": "./dist/deltaE.d.ts"
+        },
+        "./deviceCmyk": {
+            "import": "./dist/deviceCmyk.js",
+            "types": "./dist/deviceCmyk.d.ts"
         },
         "./fitMethods": {
             "import": "./dist/fitMethods.js",
@@ -177,6 +181,9 @@
             ],
             "deltaE": [
                 "dist/deltaE.d.ts"
+            ],
+            "deviceCmyk": [
+                "dist/deviceCmyk.d.ts"
             ],
             "fitMethods": [
                 "dist/fitMethods.d.ts"
