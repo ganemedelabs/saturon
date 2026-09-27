@@ -3,43 +3,10 @@ import { SystemColor, systemColors } from "saturon/systemColors";
 import { parse } from "saturon/parse";
 import { convert } from "saturon/convert";
 import { toArray } from "saturon/toArray";
-import { Color } from "saturon";
-import { FormattingOptions } from "saturon/formatters";
 import { ColorModel } from "saturon/converters";
 import { FitMethod } from "saturon/fitMethods";
 import { RandomOptions } from "saturon/random";
 import { InputTab, OutputType } from "@/types";
-
-export function detectGamut() {
-    if (typeof window === "undefined") return "srgb";
-    if (matchMedia("(color-gamut: rec2020)").matches) return "rec2020";
-    if (matchMedia("(color-gamut: p3)").matches) return "display-p3";
-    return "srgb";
-}
-
-let usableGamut: string | null = null;
-
-export function detectUsableGamut() {
-    if (!usableGamut && typeof window !== "undefined") usableGamut = detectGamut();
-    return usableGamut || "srgb";
-}
-
-export function browserSupportsSpace(space: string) {
-    if (typeof window === "undefined" || !("CSS" in window) || !CSS.supports) return false;
-    return CSS.supports("color", `color(${space} 1 0 0)`);
-}
-
-export function supportsSRGBFunction() {
-    if (typeof window === "undefined" || !("CSS" in window) || !CSS.supports) return false;
-    return CSS.supports("color", "color(srgb 1 0 0)");
-}
-
-export function formatColorOutput(color: Color, space: string, options: FormattingOptions) {
-    const { fit: method, precision, legacy, units } = options;
-    if (browserSupportsSpace(space)) return color.fit({ method, precision }).to(space, { legacy, units });
-    if (supportsSRGBFunction()) return color.fit({ method, precision }).to("srgb", { legacy, units });
-    return color.fit({ method, precision }).to("rgb", { legacy, units });
-}
 
 interface SnippetOptions {
     inputTab: InputTab;

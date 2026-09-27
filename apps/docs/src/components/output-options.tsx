@@ -81,7 +81,7 @@ export function OutputOptions({
                     value={precision !== undefined ? precision : ""}
                     onChange={(e) => setPrecision(e.target.value ? parseInt(e.target.value, 10) : undefined)}
                     placeholder="e.g. 2 (leave empty for auto)"
-                    className="focus:ring-fd-primary w-full rounded-md border p-2 focus:ring-2"
+                    className="focus:ring-fd-primary w-full rounded-md border p-2 focus:ring-2 focus:outline-none"
                 />
             </div>
 

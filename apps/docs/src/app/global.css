@@ -38,7 +38,8 @@ pre > code {
     font-size: 0.85rem;
 }
 
-article code {
+article code,
+p code {
     color: oklch(from var(--color-fd-primary) l c calc(h + 180));
 }
 

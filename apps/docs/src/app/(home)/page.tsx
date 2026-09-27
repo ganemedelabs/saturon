@@ -15,6 +15,7 @@ import { StringInput } from "@/components/string-input";
 import { OutputOptions } from "@/components/output-options";
 import { DirectInput } from "@/components/direct-input";
 import { ConversionResults } from "@/components/conversion-result";
+import { Callout } from "fumadocs-ui/components/callout";
 
 export default function Home() {
     const [inputTab, setInputTab] = useState<InputTab>("string");
@@ -229,11 +230,11 @@ export default function Home() {
                     const conversion = activeColor.in(type);
 
                     if (outputType === "object") {
-                        value = conversion.fit(baseOptions).toObject(baseOptions);
+                        value = conversion.toObject(baseOptions);
                     } else if (outputType === "array") {
-                        value = conversion.fit(baseOptions).toArray(baseOptions);
+                        value = conversion.toArray(baseOptions);
                     } else {
-                        value = conversion.fit(baseOptions).toString({
+                        value = conversion.toString({
                             ...baseOptions,
                             legacy,
                             units,
@@ -268,7 +269,7 @@ export default function Home() {
             </p>
 
             <div className="block w-full grid-cols-1 gap-8 sm:grid lg:grid-cols-3">
-                <section aria-labelledby="input-section" className="col-span-1 w-full space-y-6">
+                <section aria-labelledby="input-section" className="col-span-1 my-6 w-full">
                     <h2 id="input-section" className="sr-only">
                         Input configuration
                     </h2>
@@ -352,20 +353,26 @@ export default function Home() {
                             setUnits={setUnits}
                         />
                     </form>
+                </section>
 
+                <section aria-labelledby="output-section" className="col-span-2 space-y-6">
                     <ColorPreview
                         key={(currentTheme || "light") + themeTick}
                         color={activeColor}
                         rawInput={rawInputForPreview}
-                        options={{ fit }}
+                        options={{ fit, precision }}
                         theme={currentTheme}
                     />
-                </section>
 
-                <section aria-labelledby="output-section" className="col-span-2 space-y-6">
                     <div className="space-y-2">
                         <h2 className="text-xl font-semibold lg:mt-0">Live API Usage</h2>
                         <DynamicCodeBlock lang="ts" code={codeSnippet} />
+                        <Callout type="idea">
+                            <p>
+                                Use <code>Color.get(&quot;color-models&quot;)</code> to get all the available color
+                                models.
+                            </p>
+                        </Callout>
                     </div>
 
                     <div>

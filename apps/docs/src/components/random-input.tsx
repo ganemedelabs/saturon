@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Dices } from "lucide-react";
 import { Color } from "saturon";
 import { Callout } from "fumadocs-ui/components/callout";
@@ -32,6 +33,10 @@ export function RandomInput({
     onGenerate,
     onResetModelDependencies,
 }: RandomInputProps) {
+    useEffect(() => {
+        onGenerate();
+    }, []);
+
     return (
         <div className="space-y-4">
             <div>

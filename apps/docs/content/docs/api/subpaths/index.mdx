@@ -33,7 +33,7 @@ Every method available on the `Color` class is powered by these underlying stand
         href="/docs/api/subpaths/color-mix"
         icon={<Blend className="text-indigo-500 dark:text-indigo-400" />}
     >
-        Statically mix multiple colors by percentages (matching CSS `color-mix()` behavior).
+        Statically mix multiple colors by percentages, replicating the exact W3C behavior of the CSS color-mix() function.
     </Card>
 
     <Card
@@ -49,7 +49,7 @@ Every method available on the `Color` class is powered by these underlying stand
         href="/docs/api/subpaths/contrast"
         icon={<Eye className="text-teal-500 dark:text-teal-400" />}
     >
-        Calculate the WCAG 2.1 contrast ratio between two colors.
+        Calculate the WCAG 2.1 relative luminance contrast ratio between two colors.
     </Card>
 
     <Card
@@ -57,7 +57,7 @@ Every method available on the `Color` class is powered by these underlying stand
         href="/docs/api/subpaths/convert"
         icon={<RefreshCw className="text-emerald-500 dark:text-emerald-400" />}
     >
-        Convert color coordinates from one color model to another.
+       Transform color coordinates between color models using graph pathfinding.
     </Card>
 
     <Card
@@ -65,7 +65,7 @@ Every method available on the `Color` class is powered by these underlying stand
         href="/docs/api/subpaths/delta-e"
         icon={<Ruler className="text-rose-500 dark:text-rose-400" />}
     >
-        Calculate perceptual color differences using standard CIE metrics (76, 94, 2000, OKLab).
+        Compute perceptual color differences using CIE76, CIE94, CIEDE2000, and OKLab algorithms.
     </Card>
 
     <Card
@@ -73,7 +73,7 @@ Every method available on the `Color` class is powered by these underlying stand
         href="/docs/api/subpaths/format"
         icon={<FileType className="text-purple-500 dark:text-purple-400" />}
     >
-        Serialize color data into formatted, CSS-compliant strings.
+        Serialize raw color data into formatted, CSS-compliant strings and output specifications.
     </Card>
 
     <Card
@@ -81,7 +81,7 @@ Every method available on the `Color` class is powered by these underlying stand
         href="/docs/api/subpaths/gamut"
         icon={<Maximize2 className="text-amber-500 dark:text-amber-400" />}
     >
-        Check gamut boundaries and map out-of-bounds colors into physical gamut spaces.
+        Check color gamut boundaries and fit out-of-bounds coordinates into physical gamut spaces.
     </Card>
 
     <Card
@@ -89,7 +89,7 @@ Every method available on the `Color` class is powered by these underlying stand
         href="/docs/api/subpaths/getters"
         icon={<List className="text-sky-500 dark:text-sky-400" />}
     >
-        Retrieve lists of registered engine items like available color models or fit methods.
+        Query registered color models, spaces, keywords, fit methods, and model components from the engine.
     </Card>
 
     <Card
@@ -105,7 +105,7 @@ Every method available on the `Color` class is powered by these underlying stand
         href="/docs/api/subpaths/is-valid"
         icon={<CheckCircle2 className="text-green-500 dark:text-green-400" />}
     >
-        Determine if a given string is a valid, parseable CSS color without throwing errors.
+        Check whether a string or token sequence is a valid, parseable CSS color or satisfies a target grammar rule.
     </Card>
 
     <Card
@@ -113,7 +113,7 @@ Every method available on the `Color` class is powered by these underlying stand
         href="/docs/api/subpaths/parse"
         icon={<FileCode className="text-blue-500 dark:text-blue-400" />}
     >
-        Parse CSS color strings, named colors, and complex functions into raw color data.
+        Parse CSS color strings, named colors, and shortcuts into raw color data objects.
     </Card>
 
     <Card
@@ -121,7 +121,7 @@ Every method available on the `Color` class is powered by these underlying stand
         href="/docs/api/subpaths/random"
         icon={<Dices className="text-violet-500 dark:text-violet-400" />}
     >
-        Generate random color coordinates based on specific criteria and model constraints.
+        Generate random color data objects with optional model constraints, channel limits, custom biases, and normal distributions.
     </Card>
 
     <Card
@@ -129,7 +129,7 @@ Every method available on the `Color` class is powered by these underlying stand
         href="/docs/api/subpaths/registry"
         icon={<Layers className="text-orange-500 dark:text-orange-400" />}
     >
-        Inject or remove custom color models, formatters, syntax rules, and gamut spaces.
+        Inject or remove custom color models, formatters, syntax rules, and gamut spaces in Saturon.
     </Card>
 
      <Card
@@ -145,7 +145,7 @@ Every method available on the `Color` class is powered by these underlying stand
         href="/docs/api/subpaths/to-array"
         icon={<Brackets className="text-fuchsia-500 dark:text-fuchsia-400" />}
     >
-        Export raw numeric arrays of component values, handling special values like `NaN` and `Infinity`.
+        Export raw numeric arrays of component values, handling special values like NaN and Infinity with gamut fitting and precision options.
     </Card>
 
     <Card
@@ -153,7 +153,7 @@ Every method available on the `Color` class is powered by these underlying stand
         href="/docs/api/subpaths/to-object"
         icon={<Braces className="text-red-500 dark:text-red-400" />}
     >
-        Export color components mapped to a descriptive object with options for precision.
+        Export color data components mapped to a descriptive object with options for precision and gamut fitting.
     </Card>
 
     <Card
@@ -161,7 +161,7 @@ Every method available on the `Color` class is powered by these underlying stand
         href="/docs/api/subpaths/update-color"
         icon={<Sliders className="text-pink-500 dark:text-pink-400" />}
     >
-        Create new color data with modified component values via objects, arrays, or functions.
+        Functional utility for creating updated color coordinate arrays through flexible mutation patterns.
     </Card>
 
 </Cards>
