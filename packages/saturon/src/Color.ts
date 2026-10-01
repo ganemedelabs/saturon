@@ -191,7 +191,7 @@ export class Color<M extends ColorModel = ColorModel> {
      * @param options - Options containing the interpolation space and hue policy.
      * @returns A new `Color` instance representing the mixed color.
      */
-    static mix<M extends ColorModel = "oklab">(colors: MixItem[], options: MixOptions<M>): Color<M> {
+    static mix<M extends ColorModel = "oklab">(colors: MixItem[], options: MixOptions<M> = {}): Color<M> {
         const { in: model = "oklab" as M } = options;
         const coords = mixColors(colors, options);
         return new Color(model, coords);
