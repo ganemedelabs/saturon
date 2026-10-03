@@ -1,4 +1,4 @@
-type { MetadataRoute } from "next";
+import type { MetadataRoute } from "next";
 import { source } from "@/lib/source";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
