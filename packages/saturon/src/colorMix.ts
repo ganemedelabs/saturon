@@ -1,5 +1,6 @@
 import { convert } from "./convert.js";
-import { ColorModel, colorModels } from "./converters.js";
+import { ColorModel } from "./converters.js";
+import { getLayout } from "./layout.js";
 import { evaluateComponent, extractToken } from "./parsers.js";
 import { parseNode, ParseNode, ColorData } from "./syntax.js";
 
@@ -163,11 +164,10 @@ export function mixColors<M extends ColorModel = "oklab">(colors: MixItem[], opt
     const definedSum = rawWeights.reduce((sum: number, w) => sum + (w || 0), 0);
     const missingCount = rawWeights.filter((w) => w === undefined).length;
 
-    if (rawWeights.length > 0 && rawWeights.every((w) => w === 0)) {
-        const { components } = colorModels[model] as any; // eslint-disable-line @typescript-eslint/no-explicit-any
-        const hueIndex = components?.h?.index ?? -1;
+    const { hueIndex, alphaIndex, length } = getLayout(model);
 
-        const result = [0, 0, 0, 0];
+    if (rawWeights.length > 0 && rawWeights.every((w) => w === 0)) {
+        const result = new Array(length).fill(0);
         if (hueIndex !== -1) result[hueIndex] = NaN;
         return result;
     }
@@ -188,10 +188,7 @@ export function mixColors<M extends ColorModel = "oklab">(colors: MixItem[], opt
 
     const converted = colors.map((item) => convert(item.color, model));
 
-    const { components } = colorModels[model] as any; // eslint-disable-line @typescript-eslint/no-explicit-any
-    const hueIndex = components?.h?.index ?? -1;
-
-    for (let c = 0; c < 4; c++) {
+    for (let c = 0; c < length; c++) {
         const nonNaNIndex = converted.findIndex((coords) => !Number.isNaN(coords[c]));
         if (nonNaNIndex !== -1) {
             const fallbackVal = converted[nonNaNIndex][c];
@@ -203,22 +200,27 @@ export function mixColors<M extends ColorModel = "oklab">(colors: MixItem[], opt
 
     let totalAlpha = 0;
     for (let i = 0; i < converted.length; i++) {
-        const a = converted[i][3] ?? 1;
+        const a = alphaIndex !== -1 ? (converted[i][alphaIndex] ?? 1) : 1;
         totalAlpha += a * weights[i];
     }
 
-    const result = [0, 0, 0, totalAlpha * alphaMult];
+    const result = new Array(length).fill(0);
+    if (alphaIndex !== -1) result[alphaIndex] = totalAlpha * alphaMult;
+
     if (totalAlpha === 0) {
-        for (let c = 0; c < 3; c++) result[c] = c === hueIndex ? NaN : 0;
+        for (let c = 0; c < length; c++) {
+            if (c !== alphaIndex) result[c] = c === hueIndex ? NaN : 0;
+        }
         return result;
     }
 
     if (colors.length === 2 && hueIndex !== -1) {
         const t = weights[1];
-        const aA = converted[0][3] ?? 1;
-        const aB = converted[1][3] ?? 1;
+        const aA = alphaIndex !== -1 ? (converted[0][alphaIndex] ?? 1) : 1;
+        const aB = alphaIndex !== -1 ? (converted[1][alphaIndex] ?? 1) : 1;
 
-        for (let c = 0; c < 3; c++) {
+        for (let c = 0; c < length; c++) {
+            if (c === alphaIndex) continue;
             if (c === hueIndex) result[c] = interpHue(converted[0][c], converted[1][c], t, hue);
             else {
                 const premixed = converted[0][c] * aA * (1 - t) + converted[1][c] * aB * t;
@@ -228,10 +230,12 @@ export function mixColors<M extends ColorModel = "oklab">(colors: MixItem[], opt
     } else {
         const refHue = hueIndex !== -1 ? converted[0][hueIndex] : 0;
 
-        for (let c = 0; c < 3; c++) {
+        for (let c = 0; c < length; c++) {
+            if (c === alphaIndex) continue;
+
             let sum = 0;
             for (let i = 0; i < converted.length; i++) {
-                const alpha = converted[i][3] ?? 1;
+                const alpha = alphaIndex !== -1 ? (converted[i][alphaIndex] ?? 1) : 1;
                 const val = converted[i][c];
 
                 if (c === hueIndex) {

@@ -1,4 +1,4 @@
-import { ColorModel, colorModels, ColorSpace, Component } from "./converters.js";
+import { ColorModel, ColorSpace, Component } from "./converters.js";
 import { config, Config, configure } from "./config.js";
 import { NamedColor } from "./namedColors.js";
 import { ComponentOptions, FormattingOptions, OutputType } from "./formatters.js";
@@ -18,6 +18,7 @@ import { ColorUpdateValues, updateColor } from "./updateColor.js";
 import { interpolate } from "./interpolate.js";
 import { scale, ScaleOptions } from "./scale.js";
 import { get, Getter, getters } from "./getters.js";
+import { getLayout } from "./layout.js";
 
 /** Signature for a plugin function that augments the Color class at runtime. */
 export type Plugin = (colorClass: typeof Color) => void; // eslint-disable-line no-unused-vars
@@ -30,15 +31,18 @@ export class Color<M extends ColorModel = ColorModel> {
     model: M;
     coords: number[];
 
-    constructor(model: M, coords: number[] = [0, 0, 0, 0]) {
-        if (model in colorModels === false) throw new Error(`Unsupported color model: '${model}'`);
-        if ([3, 4].includes(coords.length) === false) throw new Error("Coordinates array must have 3 or 4 elements.");
+    constructor(model: M, coords: number[] = []) {
+        const { length } = getLayout(model);
+        const currentLength = coords.length;
 
-        const c = coords.slice();
-        if (c.length === 3) c.push(1);
+        if (currentLength !== 0 && currentLength !== length) {
+            throw new Error(
+                `Coordinates array for model '${model}' must have ${length} elements, but received ${currentLength}.`
+            );
+        }
 
         this.model = model;
-        this.coords = c;
+        this.coords = coords;
     }
 
     /** @returns The current configuration object. */
@@ -209,7 +213,6 @@ export class Color<M extends ColorModel = ColorModel> {
         options: MixOptions<M> = {}
         // eslint-disable-next-line no-unused-vars
     ): (t: number) => Color<M> {
-        if (colors.length < 2) throw new Error("Color.interpolate requires at least two colors.");
         const { in: model = "oklab" as M, hue = "shorter" } = options;
         const int = interpolate(colors, { in: model, hue });
 

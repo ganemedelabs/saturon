@@ -16,7 +16,7 @@ new Color<M ColorModel extends>(model: M, coords?: ColorCoords): Color<M>
 ```
 
 - `model`: A supported color model string (e.g., `"rgb"`, `"hsl"`, `"oklab"`, `"oklch"`, `"lab"`).
-- `coords`: An array of channel values (including an optional alpha value between `0` and `1`).
+- `coords`: An array of channel values.
 
 ### Example
 
@@ -24,10 +24,7 @@ new Color<M ColorModel extends>(model: M, coords?: ColorCoords): Color<M>
 import { Color } from "saturon";
 
 // Create an HSL color (Hue: 266°, Saturation: 87%, Lightness: 20%)
-const purple = new Color("hsl", [266, 87, 20]);
-
-// Create an OKLab color with alpha (L: 0.6, a: 0.1, b: -0.2, Alpha: 0.8)
-const translucent = new Color("oklab", [0.6, 0.1, -0.2, 0.8]);
+const purple = new Color("hsl", [266, 87, 20, 1]);
 ```
 
 ---

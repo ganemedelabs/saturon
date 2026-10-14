@@ -86,6 +86,7 @@ export function parsePercent(str: string, type: ComponentDefinition["value"], mi
     const percent = parseFloat(str);
     if (isNaN(percent)) throw new Error(`Invalid percentage: '${str}'.`);
     if (type === "percentage") return percent;
+    if (type === "alpha-value") return percent / 100;
     if (min < 0 && max > 0) return ((percent / 100) * (max - min)) / 2;
     return (percent / 100) * (max - min) + min;
 }

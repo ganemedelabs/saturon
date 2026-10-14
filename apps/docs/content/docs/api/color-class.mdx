@@ -10,7 +10,7 @@ The `Color` class is the primary interface for object-oriented workflows in Satu
 Instantiates a new `Color` object directly from a registered color model name and an array of numeric coordinates.
 
 ```ts
-const red = new Color("rgb", [255, 0, 0]);
+const red = new Color("rgb", [255, 0, 0, 1]);
 
 // Instance Properties
 console.log(red.model); // "rgb"
@@ -19,9 +19,8 @@ console.log(red.coords); // [255, 0, 0, 1]
 
 When called, the constructor executes the following logic:
 
-1. Verifies that the provided `model` exists within the engine's registered color models (`colorModels`); throws an error if unsupported.
-2. Ensures the `coords` array contains exactly 3 or 4 elements.
-3. Clones the coordinate array and automatically appends a default alpha channel (`1`) if a 3-element array is provided.
+1. It checks if the provided `coords` array is either empty (length 0) or matches the expected length for the model. If the length is incorrect, it throws an error.
+2. It assigns the `model` and `coords` properties to the new instance.
 
 <Callout type="warn" title="Note on accessing coords property">
 
@@ -307,7 +306,7 @@ console.log(color.to("hsl", { units: true, precision: 2 })); // hsl(50deg 100% 3
 Converts the color's internal coordinates to a target color model.
 
 ```ts
-const rgb = new Color("rgb", [255, 87, 51]);
+const rgb = new Color("rgb", [255, 87, 51, 1]);
 const hsl = rgb.in("hsl");
 console.log({ ...hsl }); // { model: "hsl", coords: [15, 100, 60, 1] }
 ```
@@ -324,7 +323,7 @@ console.log({ ...hsl }); // { model: "hsl", coords: [15, 100, 60, 1] }
 Returns the color as a raw numeric array of component values, optionally normalized and fitted.
 
 ```ts
-const color = new Color("rgb", [255, 0, 0]);
+const color = new Color("rgb", [255, 0, 0, 1]);
 const arr = color.toArray();
 console.log(arr); // [255, 0, 0, 1]
 ```
@@ -341,7 +340,7 @@ console.log(arr); // [255, 0, 0, 1]
 Returns the color as an object mapping each component to its numeric value. Accepts options for precision and gamut fitting.
 
 ```ts
-const color = new Color("rgb", [255, 0, 0]);
+const color = new Color("rgb", [255, 0, 0, 1]);
 const obj = color.toObject();
 console.log(obj); // { r: 255, g: 0, b: 0, alpha: 1 }
 ```
@@ -396,7 +395,7 @@ color.with(({ r, g, b }) => [r, g, b, 0.5]);
 Creates a new `Color` instance with its coordinates strictly fitted to its own model's standard gamut boundaries using the specified mapping method.
 
 ```ts
-const extreme = new Color("rgb", [300, 0, 0]);
+const extreme = new Color("rgb", [300, 0, 0, 1]);
 const fitted = extreme.fit();
 console.log(fitted.coords); // [255, 0, 0, 1]
 ```
@@ -408,7 +407,7 @@ console.log(fitted.coords); // [255, 0, 0, 1]
 Fits out-of-bounds coordinates to a target physical gamut space.
 
 ```ts
-const extreme = new Color("rgb", [300, 0, 0]);
+const extreme = new Color("rgb", [300, 0, 0, 1]);
 const fitted = extreme.within("srgb");
 console.log(fitted.coords); // [255, 0, 0, 1]
 ```
@@ -425,7 +424,7 @@ console.log(fitted.coords); // [255, 0, 0, 1]
 Determines whether the current color coordinates lie strictly within the boundaries of a given physical gamut space. [See `saturon/gamut` for more details.](https://www.google.com/search?q=/docs/api/gamut)
 
 ```ts
-const color = new Color("display-p3", [1, 0, 0]);
+const color = new Color("display-p3", [1, 0, 0, 1]);
 console.log(color.inGamut("srgb")); // false
 console.log(color.inGamut("display-p3")); // true
 ```

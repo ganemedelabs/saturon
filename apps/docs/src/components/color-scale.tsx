@@ -133,11 +133,11 @@ export default function InteractiveColorScale() {
         return [
             {
                 id: "1",
-                value: new Color("hsl", [randomHue, 100, 50]).to("hex-color"),
+                value: new Color("hsl", [randomHue, 100, 50, 1]).to("hex-color"),
             },
             {
                 id: "2",
-                value: new Color("hsl", [oppositeHue, 100, 50]).to("hex-color"),
+                value: new Color("hsl", [oppositeHue, 100, 50, 1]).to("hex-color"),
             },
         ] as StopState[];
     });

@@ -37,7 +37,7 @@ describe("Color registration system", () => {
             {
                 name: "rec2100-hlg",
                 value: {
-                    components: ["r", "g", "b", "alpha"],
+                    components: ["r", "g", "b"],
                     bridge: "xyz-d65",
                     toLinear: (c: number) => {
                         const a = 0.17883277;
@@ -65,7 +65,7 @@ describe("Color registration system", () => {
         expect(rec2100.toArray()).toEqual([0, 0, 1, 1]);
         expect(() => rec2100.with({ r: 0 }).to("xyz-d65")).not.toThrow();
 
-        const instance = new Color("rec2100-hlg" as ColorModel, [NaN, -Infinity, Infinity]);
+        const instance = new Color("rec2100-hlg" as ColorModel, [NaN, -Infinity, Infinity, 1]);
         expect(instance.toArray()).toEqual([0, 0, 1, 1]);
 
         const relative = "color(from color(rec2100-hlg 0.7 0.3 0.1) rec2100-hlg r g b)";
@@ -87,7 +87,7 @@ describe("Color registration system", () => {
             {
                 name: "rec2100-pq",
                 value: {
-                    components: ["r", "g", "b", "alpha"],
+                    components: ["r", "g", "b"],
                     bridge: "xyz-d65",
                     toLinear: (c: number) => {
                         const ninv = 2 ** 14 / 2610;
@@ -132,7 +132,7 @@ describe("Color registration system", () => {
                         i: { index: 0, value: [0, 1], precision: 5 },
                         ct: { index: 1, value: [-1, 1], precision: 5 },
                         cp: { index: 2, value: [-1, 1], precision: 5 },
-                        alpha: { index: 3, value: [0, 1], precision: 5 },
+                        alpha: { index: 3, value: "alpha-value", precision: 5 },
                     },
                     bridge: "rec2100-pq",
                     fromBridge: ([R, G, B]: number[]) => {
@@ -183,7 +183,7 @@ describe("Color registration system", () => {
         expect(ictcp.toArray()).toEqual([0, -1, 1, 1]);
         expect(() => ictcp.with({ cp: 0 }).to("rgb")).not.toThrow();
 
-        const instance = new Color("ictcp" as ColorModel, [NaN, -Infinity, Infinity]);
+        const instance = new Color("ictcp" as ColorModel, [NaN, -Infinity, Infinity, 1]);
         expect(instance.toArray()).toEqual([0, -1, 1, 1]);
 
         const relative = "ictcp(from ictcp(0.5 0.3 -0.2) i ct cp)";
@@ -306,22 +306,22 @@ describe("Color registration system", () => {
                 },
             },
         ]);
-        const purGreen = new Color("rgb", [0, 255, 0]);
+        const purGreen = new Color("rgb", [0, 255, 0, 1]);
         expect(purGreen.to("fluid-volume")).toBe("fluid-volume(GGGGGGGGGGGGGGGGGGGG)");
 
-        const magenta = new Color("rgb", [255, 0, 255]);
+        const magenta = new Color("rgb", [255, 0, 255, 1]);
         expect(magenta.to("fluid-volume")).toBe("fluid-volume(RRRRRRRRRRBBBBBBBBBB)");
 
-        const white = new Color("rgb", [255, 255, 255]);
+        const white = new Color("rgb", [255, 255, 255, 1]);
         expect(white.to("fluid-volume")).toBe("fluid-volume(RRRRRRRGGGGGGGBBBBBBB)");
 
-        const gray = new Color("rgb", [128, 128, 128]);
+        const gray = new Color("rgb", [128, 128, 128, 1]);
         expect(gray.to("fluid-volume")).toBe("fluid-volume(RRRRRRRGGGGGGGBBBBBBB)");
 
-        const black = new Color("rgb", [0, 0, 0]);
+        const black = new Color("rgb", [0, 0, 0, 1]);
         expect(black.to("fluid-volume")).toBe("fluid-volume()");
 
-        const orange = new Color("srgb", [255, 128, 0]); // sum = 255 + 128 = 383
+        const orange = new Color("srgb", [255, 128, 0, 1]); // sum = 255 + 128 = 383
         // R ratio: 255/383 * 20 ≈ 13.31 -> 13 chars
         // G ratio: 128/383 * 20 ≈ 6.68 -> 7 chars
         expect(orange.to("fluid-volume")).toBe("fluid-volume(RRRRRRRRRRRRRGGGGGGG)");
@@ -347,7 +347,7 @@ describe("Color registration system", () => {
                     appendTo: "<color>",
                     parse: (str: string) => {
                         if (str === "test") {
-                            return { model: "rgb", coords: [NaN, NaN, NaN] };
+                            return { model: "rgb", coords: [NaN, NaN, NaN, NaN] };
                         }
                         return null;
                     },
@@ -359,7 +359,7 @@ describe("Color registration system", () => {
         expect(rgbShortcut.coords).toEqual([0, 0, 0, 0]);
 
         const newRuleShortcut = Color.from("test");
-        expect(newRuleShortcut.coords).toEqual([NaN, NaN, NaN, 1]);
+        expect(newRuleShortcut.coords).toEqual([NaN, NaN, NaN, NaN]);
     });
 
     it("register a new fit method", () => {
@@ -717,7 +717,7 @@ describe("Color registration system", () => {
             },
         ]);
 
-        const coords = [1.2, -0.3, 0.5];
+        const coords = [1.2, -0.3, 0.5, 1];
         const model = "srgb";
         const epsilon = 1e-5;
 
@@ -732,9 +732,9 @@ describe("Color registration system", () => {
         expect(chromaCoords).not.toEqual(cam16Coords);
         expect(cssCoords).not.toEqual(cam16Coords);
 
-        const withinGamut = [0.5, 0.5, 0.5];
+        const withinGamut = [0.5, 0.5, 0.5, 1];
         const fitted = new Color(model, withinGamut).toArray({ fit: "cam16-ucs" as FitMethod });
-        expect(fitted).toEqual([...withinGamut, 1]);
+        expect(fitted).toEqual(withinGamut);
     });
 });
 
@@ -775,7 +775,7 @@ describe("Color unregistration and replacement system", () => {
             {
                 name: "css-gamut-map",
                 value: (data): number[] => {
-                    return fit(data, { fit: "clip" });
+                    return fit(data, { method: "clip" });
                 },
             },
         ]);
@@ -790,7 +790,7 @@ describe("Color unregistration and replacement system", () => {
             {
                 name: "srgb",
                 value: {
-                    components: ["x", "y", "z", "alpha"],
+                    components: ["x", "y", "z"],
                     bridge: "xyz-d65",
                     toBridgeMatrix: [
                         [2, 0, 0],
@@ -850,5 +850,57 @@ describe("Color unregistration and replacement system", () => {
                 },
             },
         ]);
+    });
+
+    it("should correctly handle color models with alpha in a non-last index, no alpha, and 4+ components", () => {
+        Color.register("color-models", [
+            {
+                name: "test-alpha-middle",
+                value: {
+                    components: {
+                        r: { index: 0, value: [0, 1] },
+                        g: { index: 1, value: [0, 1] },
+                        alpha: { index: 2, value: "alpha-value" },
+                        b: { index: 3, value: [0, 1] },
+                    },
+                    bridge: "srgb",
+                    toBridge: (coords: number[]) => [coords[0], coords[1], coords[3], coords[2]],
+                    fromBridge: (coords: number[]) => [coords[0], coords[1], coords[3], coords[2]],
+                },
+            },
+            {
+                name: "test-no-alpha",
+                value: {
+                    components: {
+                        r: { index: 0, value: [0, 1] },
+                        g: { index: 1, value: [0, 1] },
+                        b: { index: 2, value: [0, 1] },
+                    },
+                    bridge: "srgb",
+                    toBridge: (coords: number[]) => [...coords, 1],
+                    fromBridge: (coords: number[]) => coords.slice(0, 3),
+                },
+            },
+            {
+                name: "test-many-components",
+                value: {
+                    components: {
+                        u: { index: 0, value: [0, 1] },
+                        x: { index: 1, value: [0, 1] },
+                        y: { index: 2, value: [0, 1] },
+                        z: { index: 3, value: [0, 1] },
+                        alpha: { index: 4, value: "alpha-value" },
+                    },
+                    bridge: "srgb",
+                    toBridge: (coords: number[]) => [coords[0], coords[1], coords[2], coords[4]],
+                    fromBridge: (coords: number[]) => [coords[0], coords[1], coords[2], 0, coords[3]],
+                },
+            },
+        ]);
+
+        const srgb = new Color("srgb", [1, 1, 1, 0.5]);
+        expect(srgb.in("test-alpha-middle").coords[2]).toBe(0.5);
+        expect(srgb.in("test-no-alpha").coords.includes(0.5)).toBe(false);
+        expect(srgb.in("test-many-components").coords[4]).toBe(0.5);
     });
 });

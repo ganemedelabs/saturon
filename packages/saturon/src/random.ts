@@ -62,6 +62,7 @@ export function random<M extends ColorModel = ColorModel>(options: RandomOptions
 
         if (comp.value === "hue") [defaultMin, defaultMax] = [0, 360];
         else if (comp.value === "percentage") [defaultMin, defaultMax] = [0, 100];
+        else if (comp.value === "alpha-value") [defaultMin, defaultMax] = [0, 1];
         else if (Array.isArray(comp.value)) [defaultMin, defaultMax] = comp.value;
         else throw new Error(`Invalid component value definition for "${name}".`);
 

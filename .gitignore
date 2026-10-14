@@ -15,6 +15,7 @@ dist
 out/
 build
 *.tsbuildinfo
+apps/benchmark/data/
 
 # misc
 .DS_Store

@@ -5,8 +5,8 @@ import { type FitMethod } from "../fitMethods.js";
 describe("Color", () => {
     it("should define a Color instance in different ways", () => {
         expect(Color.from("red")).toBeInstanceOf(Color);
-        expect(new Color("rgb", [233, 45, 92])).toBeInstanceOf(Color);
-        expect(new Color("display-p3", [NaN, Infinity, -Infinity])).toBeInstanceOf(Color);
+        expect(new Color("rgb", [233, 45, 92, 1])).toBeInstanceOf(Color);
+        expect(new Color("display-p3", [NaN, Infinity, -Infinity, 1])).toBeInstanceOf(Color);
     });
 
     it("should correctly identify all supported color syntaxes", () => {
@@ -93,16 +93,43 @@ describe("Color", () => {
         expect(Color.from("#ff5733").toString()).toBe("rgb(255 87 51)");
     });
 
-    it("should output with different options", () => {
+    it("should output strings with different options", () => {
         const hsl = Color.from("hsl(339 83 46 / 0.5)");
         const lch = Color.from("lch(83 122 270)");
-        const oklab = Color.from("oklab(0.18751241 0.22143 -0.398685234)");
+        const oklab = Color.from("oklab(0.18751241 0.22143 -0.398685234 / 0.5432)");
         const xyz = Color.from("color(xyz 1.4 0.3 -0.2)");
 
         expect(hsl.toString({ legacy: true })).toBe("hsla(339, 83%, 46%, 0.5)");
         expect(lch.toString({ units: true })).toBe("lch(83% 122 270deg)");
-        expect(oklab.toString({ precision: 1 })).toBe("oklab(0.2 0.2 -0.4)");
+        expect(oklab.toString({ precision: 1 })).toBe("oklab(0.2 0.2 -0.4 / 0.5)");
+        expect(oklab.toString({ precision: undefined })).toBe("oklab(0.18751 0.22143 -0.39869 / 0.543)");
+        expect(oklab.toString({ precision: null })).toBe("oklab(0.18751241 0.22143 -0.398685234 / 0.5432)");
         expect(xyz.toString({ fit: "none" })).toBe("color(xyz 1.4 0.3 -0.2)");
+    });
+
+    it("should output array with different options", () => {
+        const oklab = Color.from("oklab(0.18751241 0.22143 -0.398685234 / 0.5432)");
+        const xyz = Color.from("color(xyz 1.4 0.3 -0.2)");
+
+        expect(oklab.toArray({ precision: 1 })).toEqual([0.2, 0.2, -0.4, 0.5]);
+        expect(oklab.toArray({ precision: undefined })).toEqual([0.18751, 0.22143, -0.39869, 0.543]);
+        expect(oklab.toArray({ precision: null })).toEqual([0.18751241, 0.22143, -0.398685234, 0.5432]);
+        expect(xyz.toArray({ fit: "none" })).toEqual([1.4, 0.3, -0.2, 1]);
+    });
+
+    it("should output object with different options", () => {
+        const oklab = Color.from("oklab(0.18751241 0.22143 -0.398685234 / 0.5432)");
+        const xyz = Color.from("color(xyz 1.4 0.3 -0.2)");
+
+        expect(oklab.toObject({ precision: 1 })).toEqual({ l: 0.2, a: 0.2, b: -0.4, alpha: 0.5 });
+        expect(oklab.toObject({ precision: undefined })).toEqual({ l: 0.18751, a: 0.22143, b: -0.39869, alpha: 0.543 });
+        expect(oklab.toObject({ precision: null })).toEqual({
+            l: 0.18751241,
+            a: 0.22143,
+            b: -0.398685234,
+            alpha: 0.5432,
+        });
+        expect(xyz.toObject({ fit: "none" })).toEqual({ x: 1.4, y: 0.3, z: -0.2, alpha: 1 });
     });
 
     it("should parse deeply nested colors", () => {
@@ -369,7 +396,7 @@ describe("Color", () => {
     });
 
     it("should gamut map out-of-gamut sRGB coords consistently", () => {
-        const coords = [1.2, -0.3, 0.5];
+        const coords = [1.2, -0.3, 0.5, 1];
         const model = "srgb";
         const epsilon = 1e-5;
 
@@ -387,18 +414,18 @@ describe("Color", () => {
 
     it("should leave already in-gamut coords unchanged", () => {
         const fitMethods: FitMethod[] = ["clip", "chroma-reduction", "css-gamut-map"];
-        const coords = [0.5, 0.5, 0.5];
+        const coords = [0.5, 0.5, 0.5, 1];
         const model = "srgb";
 
         for (const fit of fitMethods) {
             const fitted = new Color(model, coords).toArray({ fit });
-            expect(fitted).toEqual([...coords, 1]);
+            expect(fitted).toEqual(coords);
         }
     });
 
     it("should gamut map extreme coords differently per method", () => {
         const fitMethods: FitMethod[] = ["clip", "chroma-reduction", "css-gamut-map"];
-        const coords = [2, 2, -1];
+        const coords = [2, 2, -1, 1];
         const model = "srgb";
         const epsilon = 1e-5;
 

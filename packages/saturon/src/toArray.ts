@@ -1,55 +1,54 @@
 import { config } from "./config.js";
-import { colorModels, ComponentDefinition } from "./converters.js";
-import { applyPrecision, fit, FitMethod } from "./fitMethods.js";
+import { ComponentDefinition } from "./converters.js";
+import { applyPrecision, fit } from "./fitMethods.js";
 import { ComponentOptions } from "./formatters.js";
+import { getLayout } from "./layout.js";
 import { ColorData } from "./syntax.js";
 
-/**
- * Normalizes a component value to the expected range for its component definition.
- */
+/** Normalizes a component value to the expected range for its component definition. */
 export function normalizeComponentValue(component: number, value: ComponentDefinition["value"]): number {
     if (Number.isFinite(component)) return component;
-    if (Number.isNaN(component) || typeof component !== "number") return 0;
+    if (typeof component !== "number" || Number.isNaN(component)) return 0;
 
     if (component === Infinity) {
         if (Array.isArray(value)) return value[1];
+        if (value === "alpha-value") return 1;
         return value === "hue" ? 360 : 100;
     }
 
-    if (Array.isArray(value)) return value[0];
-    return 0;
+    // -Infinity
+    return Array.isArray(value) ? value[0] : 0;
 }
 
-export function toArray(color: ColorData, options?: ComponentOptions): number[] {
-    const method = options?.fit ?? (config.defaults.fit as FitMethod);
-    let precision = options?.precision;
-
-    if (typeof precision === "number" && precision > 100) precision = undefined;
+/**
+ * Converts a ColorData object into an array of normalized component values, optionally applying fitting and precision adjustments.
+ * @param color - The ColorData object containing the color model and its component coordinates.
+ * @param options - Optional settings for fitting and precision adjustments.
+ * @returns An array of normalized component values, including alpha if applicable.
+ * @throws If the color model does not have defined components.
+ */
+export function toArray(color: ColorData, options: ComponentOptions = {}): number[] {
+    const { fit: method = config.defaults.fit, precision } = options;
 
     const { model, coords } = color;
-    const { components } = colorModels[model];
+    const { alphaIndex, values, length } = getLayout(model);
+    const alphaDef = values[alphaIndex];
+    const colorDefs = values.filter((_, i) => i !== alphaIndex);
 
-    if (!components) throw new Error(`Model ${model} does not have defined components.`);
+    const fitted = fit(
+        { model, coords: colorDefs.map((d) => normalizeComponentValue(coords[d.index], d.value)) },
+        { method, precision }
+    );
 
-    const defs: ComponentDefinition[] = [];
+    const result = new Array<number>(length);
+    colorDefs.forEach((d, i) => {
+        result[d.index] = normalizeComponentValue(fitted[i], d.value);
+    });
 
-    for (const props of Object.values(components)) defs[props.index] = props;
-
-    const limit = Math.min(coords.length, 3);
-    const norm = new Array(limit);
-
-    for (let i = 0; i < limit; i++) norm[i] = normalizeComponentValue(coords[i], defs[i].value);
-
-    const fitted = fit({ model, coords: norm }, { fit: method, precision });
-
-    const fitLimit = Math.min(fitted.length, 3);
-    const result = new Array(fitLimit + 1);
-
-    for (let i = 0; i < fitLimit; i++) result[i] = fitted[i];
-
-    const alpha = normalizeComponentValue(coords[3] ?? 1, defs[3].value);
-
-    result[fitLimit] = applyPrecision(alpha, precision, defs[fitLimit]?.precision ?? 3);
+    if (alphaDef) {
+        const raw = normalizeComponentValue(coords[alphaDef.index] ?? 1, alphaDef.value);
+        result[alphaIndex] = applyPrecision(raw, precision, alphaDef.precision ?? 3);
+    }
 
     return result;
 }

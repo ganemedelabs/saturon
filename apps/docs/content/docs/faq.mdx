@@ -12,7 +12,7 @@ Use `Color.from(string)` to create a `Color` instance from a CSS color string, `
 import { Color } from "saturon";
 
 const fromString = Color.from("#ff5733"); // { model: "rgb", coords: [255, 87, 51, 1] }
-const fromCoords = new Color("hsl", [120, 100, 50]); // { model: "hsl", coords: [120, 100, 50, 1] }
+const fromCoords = new Color("hsl", [120, 100, 50, 1]); // { model: "hsl", coords: [120, 100, 50, 1] }
 const randomColor = Color.random(); // Random color
 ```
 
@@ -70,9 +70,9 @@ In contrast, the `toArray()` method returns a normalized array of coordinates. I
 ```ts
 import { Color } from "saturon";
 
-const color = new Color("hsl", [NaN, -Infinity, Infinity]);
+const color = new Color("hsl", [NaN, -Infinity, Infinity, 1]);
 
-console.log(color.coords); // [NaN, -Infinity, Infinity]
+console.log(color.coords); // [NaN, -Infinity, Infinity, 1]
 console.log(color.toArray()); // [0, 0, 255]
 ```
 
@@ -163,7 +163,7 @@ Use the `fit()` method to adjust a color's components so they fall within the va
 ```ts
 import { Color } from "saturon";
 
-const wideColor = new Color("oklab", [0.5, -0.5, 0.2]);
+const wideColor = new Color("oklab", [0.5, -0.5, 0.2, 1]);
 const clippedColor = wideColor.fit({ method: "clip" });
 console.log(clippedColor.to("display-p3")); // color(display-p3 0 0.57416 0)
 ```

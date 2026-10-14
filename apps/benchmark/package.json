@@ -1,0 +1,20 @@
+{
+    "name": "saturon-benchmark",
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "generate": "node generate-data.mjs",
+        "bench": "node bench.mjs",
+        "start": "node generate-data.mjs && node bench.mjs"
+    },
+    "dependencies": {
+        "saturon": "workspace:*"
+    },
+    "devDependencies": {
+        "chroma-js": "^3.2.0",
+        "color": "^5.0.3",
+        "colorjs.io": "^0.7.1",
+        "culori": "^4.0.2",
+        "mitata": "^1.0.34"
+    }
+}

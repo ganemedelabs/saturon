@@ -114,6 +114,22 @@ export const registerers = {
             throw new Error('Converter.components cannot have a component named "none".');
         }
 
+        let hueCount = 0;
+        let alphaCount = 0;
+        for (const def of Object.values(converter.components)) {
+            if (def && typeof def === "object" && "value" in def) {
+                if (def.value === "hue") hueCount++;
+                if (def.value === "alpha-value") alphaCount++;
+            }
+        }
+
+        if (hueCount > 1) {
+            throw new Error("Converter.components cannot have more than 1 'hue' component.");
+        }
+        if (alphaCount > 1) {
+            throw new Error("Converter.components cannot have more than 1 'alpha-value' component.");
+        }
+
         models[n] = converter;
         formatters[n] = createColorFormatter(n, converter);
 

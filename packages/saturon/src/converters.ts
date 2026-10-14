@@ -82,8 +82,8 @@ export type ComponentDefinition = {
     /** Position of the component in the color array */
     index: number;
 
-    /** The value type for the component, which can be a tuple of two numbers representing a range, or a string indicating a special type ("hue" or "percentage"). */
-    value: number[] | "hue" | "percentage";
+    /** The value type for the component, which can be a tuple of two numbers representing a range, or a string indicating a special type ("hue", "percentage", or "alpha-value"). */
+    value: number[] | "hue" | "percentage" | "alpha-value";
 
     /** Precision for rounding the component value, or `null` to disable rounding. Defaults to 3 if left undefined. */
     precision?: number | null;
@@ -149,9 +149,21 @@ export function spaceConverterToModelConverter<const C extends readonly string[]
         targetGamut: converter.targetGamut === null ? null : name,
         components: {
             ...Object.fromEntries(
-                converter.components.map((comp, index) => [comp, { index, value: [0, 1], precision: 5 }])
+                converter.components.map((comp, index) => [
+                    comp,
+                    {
+                        index,
+                        value: [0, 1],
+                        precision: 5,
+                    } satisfies ComponentDefinition,
+                ])
             ),
-        } as Record<C[number], ComponentDefinition>,
+            alpha: {
+                index: converter.components.length,
+                value: "alpha-value",
+                precision: 3,
+            } satisfies ComponentDefinition,
+        } as Record<C[number] | "alpha", ComponentDefinition>,
         bridge: converter.bridge,
         toBridge: (coords: number[]) => {
             return multiplyMatrices(
@@ -393,7 +405,7 @@ export function OKLAB_to_OKLCH([L, a, b]: number[]) {
  */
 export const colorSpaces = {
     srgb: spaceConverterToModelConverter("srgb", {
-        components: ["r", "g", "b", "alpha"],
+        components: ["r", "g", "b"],
         bridge: "xyz-d65",
         toLinear: (c: number) => {
             const sign = c < 0 ? -1 : 1;
@@ -411,13 +423,13 @@ export const colorSpaces = {
         fromBridgeMatrix: MATRICES.XYZD65_to_SRGB,
     }),
     "srgb-linear": spaceConverterToModelConverter("srgb-linear", {
-        components: ["r", "g", "b", "alpha"],
+        components: ["r", "g", "b"],
         bridge: "xyz-d65",
         toBridgeMatrix: MATRICES.SRGB_to_XYZD65,
         fromBridgeMatrix: MATRICES.XYZD65_to_SRGB,
     }),
     "display-p3": spaceConverterToModelConverter("display-p3", {
-        components: ["r", "g", "b", "alpha"],
+        components: ["r", "g", "b"],
         bridge: "xyz-d65",
         toLinear: (c: number) => {
             const sign = c < 0 ? -1 : 1;
@@ -435,7 +447,7 @@ export const colorSpaces = {
         fromBridgeMatrix: MATRICES.XYZD65_to_P3,
     }),
     rec2020: spaceConverterToModelConverter("rec2020", {
-        components: ["r", "g", "b", "alpha"],
+        components: ["r", "g", "b"],
         bridge: "xyz-d65",
         toLinear: (c: number) => {
             const α = 1.09929682680944;
@@ -457,7 +469,7 @@ export const colorSpaces = {
         fromBridgeMatrix: MATRICES.XYZD65_to_REC2020,
     }),
     "a98-rgb": spaceConverterToModelConverter("a98-rgb", {
-        components: ["r", "g", "b", "alpha"],
+        components: ["r", "g", "b"],
         bridge: "xyz-d65",
         toLinear: (c: number) => {
             const sign = c < 0 ? -1 : 1;
@@ -473,7 +485,7 @@ export const colorSpaces = {
         fromBridgeMatrix: MATRICES.XYZD65_to_A98,
     }),
     "prophoto-rgb": spaceConverterToModelConverter("prophoto-rgb", {
-        components: ["r", "g", "b", "alpha"],
+        components: ["r", "g", "b"],
         bridge: "xyz-d50",
         toLinear: (c: number) => {
             const Et2 = 16 / 512;
@@ -494,7 +506,7 @@ export const colorSpaces = {
     }),
     "xyz-d65": spaceConverterToModelConverter("xyz-d65", {
         targetGamut: null,
-        components: ["x", "y", "z", "alpha"],
+        components: ["x", "y", "z"],
         bridge: "xyz-d65",
         toBridgeMatrix: [
             [1, 0, 0],
@@ -509,14 +521,14 @@ export const colorSpaces = {
     }),
     "xyz-d50": spaceConverterToModelConverter("xyz-d50", {
         targetGamut: null,
-        components: ["x", "y", "z", "alpha"],
+        components: ["x", "y", "z"],
         bridge: "xyz-d65",
         toBridgeMatrix: MATRICES.D50_to_D65,
         fromBridgeMatrix: MATRICES.D65_to_d50,
     }),
     xyz: spaceConverterToModelConverter("xyz", {
         targetGamut: null,
-        components: ["x", "y", "z", "alpha"],
+        components: ["x", "y", "z"],
         bridge: "xyz-d65",
         toBridgeMatrix: [
             [1, 0, 0],
@@ -544,7 +556,7 @@ export const colorModels = {
             r: { index: 0, value: [0, 255], precision: 0 },
             g: { index: 1, value: [0, 255], precision: 0 },
             b: { index: 2, value: [0, 255], precision: 0 },
-            alpha: { index: 3, value: [0, 1], precision: 3 },
+            alpha: { index: 3, value: "alpha-value", precision: 3 },
         },
         bridge: "xyz-d65",
         toBridge: RGB_to_XYZD65,
@@ -557,7 +569,7 @@ export const colorModels = {
             h: { index: 0, value: "hue", precision: 0 },
             s: { index: 1, value: "percentage", precision: 0 },
             l: { index: 2, value: "percentage", precision: 0 },
-            alpha: { index: 3, value: [0, 1], precision: 3 },
+            alpha: { index: 3, value: "alpha-value", precision: 3 },
         },
         bridge: "rgb",
         toBridge: HSL_to_RGB,
@@ -568,7 +580,7 @@ export const colorModels = {
             h: { index: 0, value: "hue", precision: 0 },
             w: { index: 1, value: "percentage", precision: 0 },
             b: { index: 2, value: "percentage", precision: 0 },
-            alpha: { index: 3, value: [0, 1], precision: 3 },
+            alpha: { index: 3, value: "alpha-value", precision: 3 },
         },
         bridge: "rgb",
         toBridge: HWB_to_RGB,
@@ -580,7 +592,7 @@ export const colorModels = {
             l: { index: 0, value: "percentage", precision: 5 },
             a: { index: 1, value: [-125, 125], precision: 5 },
             b: { index: 2, value: [-125, 125], precision: 5 },
-            alpha: { index: 3, value: [0, 1], precision: 3 },
+            alpha: { index: 3, value: "alpha-value", precision: 3 },
         },
         bridge: "xyz-d50",
         toBridge: LAB_to_XYZD50,
@@ -592,7 +604,7 @@ export const colorModels = {
             l: { index: 0, value: "percentage", precision: 5 },
             c: { index: 1, value: [0, 150], precision: 5 },
             h: { index: 2, value: "hue", precision: 5 },
-            alpha: { index: 3, value: [0, 1], precision: 3 },
+            alpha: { index: 3, value: "alpha-value", precision: 3 },
         },
         bridge: "lab",
         toBridge: LCH_to_LAB,
@@ -604,7 +616,7 @@ export const colorModels = {
             l: { index: 0, value: [0, 1], precision: 5 },
             a: { index: 1, value: [-0.4, 0.4], precision: 5 },
             b: { index: 2, value: [-0.4, 0.4], precision: 5 },
-            alpha: { index: 3, value: [0, 1], precision: 3 },
+            alpha: { index: 3, value: "alpha-value", precision: 3 },
         },
         bridge: "xyz-d65",
         toBridge: OKLAB_to_XYZD65,
@@ -616,7 +628,7 @@ export const colorModels = {
             l: { index: 0, value: [0, 1], precision: 5 },
             c: { index: 1, value: [0, 0.4], precision: 5 },
             h: { index: 2, value: "hue", precision: 5 },
-            alpha: { index: 3, value: [0, 1], precision: 3 },
+            alpha: { index: 3, value: "alpha-value", precision: 3 },
         },
         bridge: "oklab",
         toBridge: OKLCH_to_OKLAB,

@@ -1,21 +1,23 @@
 import { cache } from "./config.js";
 import { ColorModel, ColorModelConverter, colorModels } from "./converters.js";
+import { getLayout } from "./layout.js";
 import { ColorData } from "./syntax.js";
 
+/**
+ * Converts a color from one model to another using the defined conversion graph.
+ *
+ * @param color - The color data to convert, including its model and coordinates.
+ * @param to - The target color model to convert to.
+ * @returns The converted color coordinates in the target model.
+ * @throws If no conversion path exists between the source and target models.
+ */
 export function convert(color: ColorData, to: ColorModel): number[]; // eslint-disable-line no-unused-vars
 export function convert(color: ColorData, to: string): number[]; // eslint-disable-line no-unused-vars
 export function convert(color: ColorData, to: string | ColorModel): number[] {
     const from = color.model;
     const coords = color.coords;
 
-    if (to === from) {
-        return [
-            isNaN(coords[0]) ? 0 : coords[0],
-            isNaN(coords[1]) ? 0 : coords[1],
-            isNaN(coords[2]) ? 0 : coords[2],
-            isNaN(coords[3]) ? 0 : (coords[3] ?? 1),
-        ];
-    }
+    if (to === from) return coords;
 
     let graph = cache.get("graph");
     let paths = cache.get("paths") as Map<string, ((coords: number[]) => number[])[]>; // eslint-disable-line no-unused-vars
@@ -74,7 +76,17 @@ export function convert(color: ColorData, to: string | ColorModel): number[] {
         paths.set(key, pipeline);
     }
 
-    let value = [isNaN(coords[0]) ? 0 : coords[0], isNaN(coords[1]) ? 0 : coords[1], isNaN(coords[2]) ? 0 : coords[2]];
+    const { alphaIndex: fromAlphaIndex } = getLayout(from);
+    const { alphaIndex: toAlphaIndex, length: toLen } = getLayout(to as ColorModel);
+
+    const input = coords.slice();
+    let alpha = 1;
+    if (fromAlphaIndex !== -1) alpha = input.splice(fromAlphaIndex, 1)[0] ?? 1;
+
+    let value = input;
     for (let i = 0; i < pipeline.length; i++) value = pipeline[i](value);
-    return [value[0], value[1], value[2], coords[3] ?? 1];
+
+    const result = new Array<number>(toLen);
+    for (let i = 0, j = 0; i < toLen; i++) result[i] = i === toAlphaIndex ? alpha : value[j++];
+    return result;
 }

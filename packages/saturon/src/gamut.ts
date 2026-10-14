@@ -2,6 +2,7 @@ import { config } from "./config.js";
 import { convert } from "./convert.js";
 import { ColorModel, colorModels, ColorSpace, colorSpaces } from "./converters.js";
 import { FitMethod } from "./fitMethods.js";
+import { getLayout } from "./layout.js";
 import { ColorData } from "./syntax.js";
 import { toArray } from "./toArray.js";
 
@@ -27,11 +28,14 @@ export function inGamut(color: ColorData, gamut: ColorSpace | string, options: I
     if (!targetGamut) return true;
 
     const coords = toNormArray(color, gamut as ColorSpace);
-    return Object.values(components).every(({ index, value }) => {
-        const v = coords[index];
-        const [min, max] = Array.isArray(value) ? value : value === "hue" ? [0, 360] : [0, 100];
-        return v >= min - epsilon && v <= max + epsilon;
-    });
+    const { alphaIndex } = getLayout(gamut as ColorSpace);
+    return Object.values(components)
+        .filter((_, i) => i !== alphaIndex)
+        .every(({ index, value }) => {
+            const v = coords[index];
+            const [min, max] = Array.isArray(value) ? value : value === "hue" ? [0, 360] : [0, 100];
+            return v >= min - epsilon && v <= max + epsilon;
+        });
 }
 
 export function toGamut(color: ColorData, gamut: ColorSpace, options: ToGamutOptions = {}): number[] {

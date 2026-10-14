@@ -26,7 +26,7 @@ export type GrammarRules = {
  */
 export function generateColorFunctionGrammar(name: string, converter: ColorModelConverter): GrammarRules {
     const rules: Record<string, string> = {};
-    const compEntries = Object.entries(converter.components).filter(([k]) => k !== "alpha");
+    const compEntries = Object.entries(converter.components).filter(([, def]) => def.value !== "alpha-value");
     const compKeys = compEntries.map(([k]) => k);
 
     const isHueComp = (def: ComponentDefinition) => def && def.value === "hue";
@@ -140,14 +140,15 @@ export function generateColorSpaceGrammar(
     converter: Omit<ColorModelConverter, "toBridge" | "fromBridge">
 ): GrammarRules {
     const rules: Record<string, string> = {};
-    const compKeys = Object.keys(converter.components).filter((k) => k !== "alpha");
+    const compEntries = Object.entries(converter.components).filter(([, def]) => def.value !== "alpha-value");
+    const compKeys = compEntries.map(([k]) => k);
     const compList = compKeys.join(" | ");
 
     const syntaxRuleName = `<relative-${name}-color-syntax>`;
     const compRuleName = `<${name}-relative-component>`;
     const alphaRuleName = `<${name}-relative-alpha>`;
 
-    rules[syntaxRuleName] = `color( from <color> ${name} ${compRuleName}{3} [ / ${alphaRuleName} ]? )`;
+    rules[syntaxRuleName] = `color( from <color> ${name} ${compRuleName}{${compKeys.length}} [ / ${alphaRuleName} ]? )`;
 
     rules[compRuleName] = `<number> | <percentage> | none | ${compList} | alpha`;
     rules[alphaRuleName] = `<alpha-value> | none | ${compList} | alpha`;

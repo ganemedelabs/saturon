@@ -67,7 +67,7 @@ Color.register("color-models", [
                 jz: { index: 0, value: [0, 1], precision: 5 },
                 az: { index: 1, value: [-1, 1], precision: 5 },
                 bz: { index: 2, value: [-1, 1], precision: 5 },
-                alpha: { index: 3, value: [0, 1], precision: 3 },
+                alpha: { index: 3, value: "alpha-value", precision: 3 },
             },
             bridge: "xyz-d65",
             toBridge: ([Jz, az, bz]: number[]): number[] => {

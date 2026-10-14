@@ -19,7 +19,7 @@ Color.register("color-models", [
                 h: { index: 0, value: "hue", precision: 0 },
                 s: { index: 1, value: "percentage", precision: 0 },
                 v: { index: 2, value: "percentage", precision: 0 },
-                alpha: { index: 3, value: [0, 1], precision: 3 },
+                alpha: { index: 3, value: "alpha-value", precision: 3 },
             },
             bridge: "hsl",
             toBridge: (hsv: number[]) => {

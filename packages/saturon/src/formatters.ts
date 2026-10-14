@@ -1,10 +1,11 @@
 import { config } from "./config.js";
 import { ColorModel, ColorModelConverter, colorModels, colorSpaces } from "./converters.js";
 import { ParseNode } from "./syntax.js";
-import { FitMethod, fit } from "./fitMethods.js";
+import { FitMethod, applyPrecision, fit } from "./fitMethods.js";
 import { namedColors } from "./namedColors.js";
-import { normalizeComponentValue } from "./toArray.js";
+import { toArray } from "./toArray.js";
 import { Validator } from "./validators.js";
+import { getLayout } from "./layout.js";
 
 /** Represents the color types that can be formatted to string output. */
 export type OutputType = keyof typeof formatters;
@@ -68,36 +69,51 @@ export type GrammarRuleSpec = {
 };
 
 export function createColorFormatter(model: string, converter: ColorModelConverter): ColorFormatter {
-    const { bridge, fromBridge, supportsLegacy, components, alphaVariant } = converter;
+    const { bridge, fromBridge, supportsLegacy, alphaVariant } = converter;
+
+    const { length, values: defs, alphaIndex } = getLayout(model as ColorModel);
+    const nonAlphaComponents = defs.filter((_, i) => i !== alphaIndex);
+
+    const { alphaIndex: bridgeAlphaIndex } = getLayout(bridge as ColorModel);
 
     return {
         bridge,
-        fromBridge: (coords: number[]) => [...fromBridge(coords), coords[3] ?? 1],
-        format: ([c1, c2, c3, a = 1]: number[], options: FormattingOptions = {}) => {
+        fromBridge: (coords: number[]) => {
+            const rawConverted = fromBridge(coords);
+            const alpha = bridgeAlphaIndex !== -1 ? (coords[bridgeAlphaIndex] ?? 1) : 1;
+
+            const result = new Array(length);
+            let rawIdx = 0;
+            for (const comp of defs) {
+                if (comp.value === "alpha-value") result[comp.index] = alpha;
+                else result[comp.index] = rawConverted[rawIdx++];
+            }
+            return result;
+        },
+        format: (coords: number[], options: FormattingOptions = {}) => {
             const { legacy = false, fit: fitMethod = config.defaults.fit, precision, units = false } = options;
 
-            const fitted = fit({ model: model as ColorModel, coords: [c1, c2, c3] }, { fit: fitMethod, precision });
+            const values = toArray({ model: model as ColorModel, coords }, { fit: fitMethod as FitMethod, precision });
 
-            const formatted = [...fitted, a].map((c, index) => {
-                const norm = normalizeComponentValue(c, Object.values(components)[index].value);
-                if ((units || legacy) && components) {
-                    const def = Object.values(components).find((comp) => comp.index === index);
-                    if (def?.value === "percentage") return `${norm}%`;
-                    if (def?.value === "hue" && units) return `${norm}deg`;
-                }
-                return norm.toString();
+            const alpha = alphaIndex !== -1 ? values[alphaIndex] : 1;
+            const alphaStr = String(alpha);
+
+            const f = nonAlphaComponents.map((c) => {
+                const v = values[c.index];
+                if (c.value === "percentage" && (units || legacy)) return `${v}%`;
+                if (c.value === "hue" && units) return `${v}deg`;
+                return String(v);
             });
 
-            const f = formatted.slice(0, 3);
-            const alpha = formatted[3];
-
-            if (model in colorSpaces) return `color(${model} ${f.join(" ")}${a !== 1 ? ` / ${alpha}` : ""})`;
+            if (model in colorSpaces) return `color(${model} ${f.join(" ")}${alpha !== 1 ? ` / ${alphaStr}` : ""})`;
 
             if (legacy && supportsLegacy) {
-                return a === 1 ? `${model}(${f.join(", ")})` : `${alphaVariant || model}(${f.join(", ")}, ${alpha})`;
+                return alpha === 1
+                    ? `${model}(${f.join(", ")})`
+                    : `${alphaVariant || model}(${f.join(", ")}, ${alphaStr})`;
             }
 
-            return `${model}(${f.join(" ")}${a !== 1 ? ` / ${alpha}` : ""})`;
+            return `${model}(${f.join(" ")}${alpha !== 1 ? ` / ${alphaStr}` : ""})`;
         },
     };
 }
@@ -130,22 +146,18 @@ export const formatters = {
         fromBridge: (coords: number[]) => coords,
         format: ([red, green, blue, alpha = 1]: number[], options: FormattingOptions = {}) => {
             const { legacy = false, precision = 3, fit: fitMethod = config.defaults.fit } = options;
-            const [fr, fg, fb] = fit({ model: "rgb", coords: [red, green, blue] }, { fit: fitMethod });
+            const [fr, fg, fb] = fit({ model: "rgb", coords: [red, green, blue] }, { method: fitMethod });
 
             const r = fr / 255;
             const g = fg / 255;
             const b = fb / 255;
             const k = 1 - Math.max(r, g, b);
 
-            const formatComponent = (value: number) => {
-                return Number(precision === null ? value : value.toFixed(precision)).toString();
-            };
-
-            const c = formatComponent(k === 1 ? 0 : (1 - r - k) / (1 - k));
-            const m = formatComponent(k === 1 ? 0 : (1 - g - k) / (1 - k));
-            const y = formatComponent(k === 1 ? 0 : (1 - b - k) / (1 - k));
-            const kFormatted = formatComponent(k);
-            const alphaFormatted = Number(alpha.toFixed(3)).toString();
+            const c = applyPrecision(k === 1 ? 0 : (1 - r - k) / (1 - k), precision, 3);
+            const m = applyPrecision(k === 1 ? 0 : (1 - g - k) / (1 - k), precision, 3);
+            const y = applyPrecision(k === 1 ? 0 : (1 - b - k) / (1 - k), precision, 3);
+            const kFormatted = applyPrecision(k, precision, 3);
+            const alphaFormatted = applyPrecision(alpha, precision, 3);
 
             if (legacy) {
                 return `device-cmyk(${c}, ${m}, ${y}, ${kFormatted})`;

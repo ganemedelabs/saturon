@@ -1,16 +1,19 @@
-import { cache, config } from "./config.js";
+import { config } from "./config.js";
 import { convert } from "./convert.js";
-import { ColorModel, ColorModelConverter, colorModels, ColorSpace, ComponentDefinition } from "./converters.js";
+import { ColorModel, ColorModelConverter, colorModels, ColorSpace } from "./converters.js";
 import { deltaEOK } from "./deltaE.js";
 import { ComponentOptions } from "./formatters.js";
 import { inGamut } from "./gamut.js";
 import { get } from "./getters.js";
+import { getLayout } from "./layout.js";
 import { ColorData } from "./syntax.js";
 import { toArray } from "./toArray.js";
 
 function toNormArray(color: ColorData, model: ColorModel): number[] {
     const coords = convert(color, model);
-    return toArray({ model, coords }, { fit: "none", precision: null }).slice(0, 3);
+    const { alphaIndex } = getLayout(model);
+    const arr = toArray({ model, coords }, { fit: "none", precision: null });
+    return alphaIndex !== -1 ? arr.filter((_, index) => index !== alphaIndex) : arr;
 }
 
 /** Represents a gamut mapping method. */
@@ -18,24 +21,6 @@ export type FitFunction = (data: ColorData) => number[]; // eslint-disable-line 
 
 /** Describes the available methods for fitting the color into the target gamut. */
 export type FitMethod = keyof typeof fitMethods | "none";
-
-/** Retrieves and caches the component definitions for a given color model. */
-function getModelDefinitions(model: ColorModel): ComponentDefinition[] {
-    if (!cache.has("defs")) cache.set("defs", new Map<ColorModel, ComponentDefinition[]>());
-
-    const defsCache = cache.get("defs") as Map<ColorModel, ComponentDefinition[]>;
-
-    let defs = defsCache.get(model);
-    if (!defs) {
-        const { components } = colorModels[model] as ColorModelConverter;
-        defs = Object.values(components).reduce<ComponentDefinition[]>(
-            (arr, props) => ((arr[props.index] = props), arr),
-            []
-        );
-        defsCache.set(model, defs);
-    }
-    return defs;
-}
 
 /**
  * A collection of color coordinate fitting methods used to ensure color values conform to specific constraints or gamuts.
@@ -51,7 +36,7 @@ function getModelDefinitions(model: ColorModel): ComponentDefinition[] {
 export const fitMethods = {
     clip: (data) => {
         const { model, coords } = data;
-        const defs = getModelDefinitions(model);
+        const { values: defs } = getLayout(model);
         const clipped = new Array(coords.length);
         for (let i = 0; i < coords.length; i++) {
             const v = coords[i];
@@ -87,7 +72,7 @@ export const fitMethods = {
 
             if (inGamut(candidate_color, targetGamut as ColorSpace)) C_low = C_mid;
             else {
-                const clipped_coords = fit({ model, coords: toNormArray(candidate_color, model) }, { fit: "clip" });
+                const clipped_coords = fit({ model, coords: toNormArray(candidate_color, model) }, { method: "clip" });
                 const clipped_color = { model, coords: clipped_coords };
                 const deltaE = deltaEOK(candidate_color, clipped_color);
                 if (deltaE < 2) {
@@ -125,7 +110,7 @@ export const fitMethods = {
         const epsilon = 0.0001;
 
         const current = { model: "oklch" as ColorModel, coords: [L, C, H] };
-        let clipped: number[] = fit({ model, coords: toNormArray(current, model) }, { fit: "clip" });
+        let clipped: number[] = fit({ model, coords: toNormArray(current, model) }, { method: "clip" });
 
         const initialClippedColor = { model, coords: clipped };
         const E = deltaEOK(current, initialClippedColor);
@@ -142,7 +127,7 @@ export const fitMethods = {
 
             if (min_inGamut && inGamut(candidate, targetGamut as ColorSpace)) min = chroma;
             else {
-                const clippedCoords = fit({ model, coords: toNormArray(candidate, model) }, { fit: "clip" });
+                const clippedCoords = fit({ model, coords: toNormArray(candidate, model) }, { method: "clip" });
                 clipped = clippedCoords;
                 const clippedColor = { model, coords: clippedCoords };
                 const deltaE = deltaEOK(candidate, clippedColor);
@@ -170,15 +155,12 @@ export const fitMethods = {
  * @returns The fitted coordinates.
  * @throws If the target model has incomplete component definitions or an invalid fit method.
  */
-export function fit(color: ColorData, options: ComponentOptions = {}) {
+export function fit(color: ColorData, options: Omit<ComponentOptions, "fit"> & { method?: FitMethod } = {}): number[] {
     const { model, coords } = color;
-    const { fit: method = config.defaults.fit } = options;
-    let { precision } = options;
+    const { method = config.defaults.fit, precision } = options;
 
-    const defs = getModelDefinitions(model);
+    const { values: defs } = getLayout(model);
     let clipped: number[];
-
-    if (typeof precision === "number" && precision > 100) precision = null;
 
     if (method === "none") clipped = coords;
     else {
@@ -210,8 +192,9 @@ export function applyPrecision(
     if (typeof precision === "number" || precision === null) p = precision;
     else if (typeof precision === "undefined") {
         p = defaultPrecision;
-        if (p !== null && p > 100) p = null;
     } else throw new TypeError(`Invalid precision value: ${precision}.`);
+
+    if (p !== null && p > 100) p = null;
 
     return p === null ? value : Math.round(value * 10 ** p) / 10 ** p;
 }

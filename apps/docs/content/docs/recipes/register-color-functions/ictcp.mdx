@@ -90,7 +90,7 @@ export function registerICtCp(bridge: "rec2100-pq" | "rec2100-hlg") {
                     i: { index: 0, value: [0, 1], precision: 5 },
                     ct: { index: 1, value: [-1, 1], precision: 5 },
                     cp: { index: 2, value: [-1, 1], precision: 5 },
-                    alpha: { index: 3, value: [0, 1], precision: 3 },
+                    alpha: { index: 3, value: "alpha-value", precision: 3 },
                 },
                 bridge,
                 fromBridge: ([R, G, B]: number[]) => {
