@@ -1,5 +1,5 @@
 {
     "title": "Saturon",
-    "pages": ["index", "guides", "api", "recipes", "architecture", "faq"],
+    "pages": ["index", "guides", "api", "recipes", "architecture", "conformance", "benchmarks", "faq"],
     "defaultOpen": true
 }

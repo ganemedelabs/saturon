@@ -1,15 +1,24 @@
 # Saturon
 
-A runtime-extensible JavaScript library for parsing, converting, and manipulating colors with full CSS spec support.
+Saturon is a CSS color engine for JavaScript. It implements the CSS color grammar itself, soo anything a browser accepts works here too: `color-mix()`, relative colors, `calc()`, and any nesting of them.
 
-## Features
+```typescript
+Color.from(
+    `color-mix(
+        in oklch longer hue,
+        color(from hsl(240deg none calc(-infinity) / 0.5) display-p3 r calc(g + b) 100 / alpha),
+        rebeccapurple 20%
+    )`
+).to("hwb");
+```
 
-- Full CSS Color 4/5 parsing
-- Infinite nested color functions (for example `color-mix(...)` inside `light-dark(...)`)
-- Conversion between modern color spaces such as OKLab, Display-P3, and Rec.2020
-- High-precision color math for colorimetry and conversion workflows
-- Powerful plugin system for custom color spaces and syntaxes
-- Support for complex CSS syntax including nested color functions and expressions
+## Why Saturon
+
+- Strings are parsed using a grammar-aware engine rather than standard pattern matching, allowing complex color functions to nest freely.
+- Its parsing and conversion performance outperforms Color.js even while enforcing strict, full grammar validation (see [Benchmarks](https://saturon.js.org/docs/benchmarks)).
+- All ported Web Platform Tests cases run automatically in CI to ensure high spec conformance (see [Conformance](https://saturon.js.org/docs/conformance)).
+- Custom color models and relative color syntax can be registered easily, enabling `color-mix()` and other utilities to work with them seamlessly (see [Recipes](https://saturon.js.org/docs/recipes)).
+- The package is fully tree-shakable, letting you import the primary `Color` class or only individual functions as needed (see [Tree Shakability](https://saturon.js.org/docs/guides/tree-shakability)).
 
 ## Installation
 

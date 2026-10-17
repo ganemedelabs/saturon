@@ -1,0 +1,123 @@
+---
+title: Benchmarks
+icon: Gauge
+description: How Saturon's parsing, conversion, and serialization speed compares to chroma-js, colorjs.io, and culori, and how to reproduce the numbers
+---
+
+Saturon parses colors with a full CSS grammar, which is usually the slow, careful way to build a color library. This page measures what that costs in practice, compares it to other popular color libraries, and explains how to reproduce every number.
+
+On this workload, culori is the fastest library at every task. Saturon is faster than colorjs.io on all three tasks and faster than chroma-js at parsing and stringifying. It is slower than culori on all three tasks, and slower than chroma-js at conversion.
+
+<Callout type="warn" title="Read this before quoting the numbers">
+    Microbenchmarks measure small, isolated operations. They are useful for comparing libraries on the same task, but
+    they don't predict the speed of your application. Treat the results as one input, not a verdict. See
+    [Limitations](#limitations).
+</Callout>
+
+## Results
+
+_Last run: October 17, 2026 on an Intel Core i5-13450HX (13th Gen, ~4.33 GHz), Windows (x64), Node.js 25.2.1._
+
+Each timed run processes 10,000 inputs, so the main column is the time for 10,000 operations. The per-operation column is that time divided by 10,000. The last column compares each library's average with Saturon's class API: lower times are faster. Ratios are computed from the printed averages, so they can differ in the last digit from the summary mitata prints.
+
+### Parsing: string → numbers
+
+| Library         | Version | Avg per 10,000 ops (ms) | Min – max (ms)  | Per operation (µs) | vs Saturon (class) |
+| --------------- | ------- | ----------------------- | --------------- | ------------------ | ------------------ |
+| Saturon (class) | `0.4.4` | 79.11                   | 74.32 – 87.15   | 7.91               | baseline           |
+| Saturon (utils) | `0.4.4` | 76.94                   | 70.64 – 85.44   | 7.69               | 1.03× faster       |
+| chroma-js       | `3.2.0` | 94.40                   | 91.30 – 100.36  | 9.44               | 1.19× slower       |
+| colorjs.io      | `0.7.1` | 119.19                  | 111.29 – 142.05 | 11.92              | 1.51× slower       |
+| culori          | `4.0.2` | 9.94                    | 9.52 – 10.96    | 0.99               | 7.96× faster       |
+
+### Conversion: between color models
+
+| Library         | Version | Avg per 10,000 ops (ms) | Min – max (ms) | Per operation (µs) | vs Saturon (class) |
+| --------------- | ------- | ----------------------- | -------------- | ------------------ | ------------------ |
+| Saturon (class) | `0.4.4` | 6.92                    | 6.53 – 8.52    | 0.69               | baseline           |
+| Saturon (utils) | `0.4.4` | 6.28                    | 5.90 – 6.90    | 0.63               | 1.10× faster       |
+| chroma-js       | `3.2.0` | 4.82                    | 4.38 – 6.96    | 0.48               | 1.44× faster       |
+| colorjs.io      | `0.7.1` | 41.82                   | 39.20 – 47.66  | 4.18               | 6.04× slower       |
+| culori          | `4.0.2` | 4.34                    | 4.08 – 5.11    | 0.43               | 1.59× faster       |
+
+### Stringify: numbers → CSS string
+
+| Library         | Version | Avg per 10,000 ops (ms) | Min – max (ms) | Per operation (µs) | vs Saturon (class) |
+| --------------- | ------- | ----------------------- | -------------- | ------------------ | ------------------ |
+| Saturon (class) | `0.4.4` | 6.86                    | 6.34 – 8.94    | 0.69               | baseline           |
+| Saturon (utils) | `0.4.4` | 6.47                    | 6.15 – 7.34    | 0.65               | 1.06× faster       |
+| chroma-js       | `3.2.0` | 9.28                    | 8.67 – 12.68   | 0.93               | 1.35× slower       |
+| colorjs.io      | `0.7.1` | 32.50                   | 31.66 – 34.19  | 3.25               | 4.74× slower       |
+| culori          | `4.0.2` | 4.39                    | 4.17 – 5.27    | 0.44               | 1.56× faster       |
+
+## What is measured
+
+Every library runs the same three tasks over the same inputs. Timing is done with [mitata](https://github.com/evanwashere/mitata).
+
+| Task       | What the benchmark does                                                                                |
+| ---------- | ------------------------------------------------------------------------------------------------------ |
+| Parsing    | Parses a CSS color string and reads back numbers from the result                                       |
+| Conversion | Builds a color from a model name and coordinates, then converts it to a randomly chosen target model   |
+| Stringify  | Builds a color from a model name and coordinates, then serializes it as a CSS string in the same model |
+
+The conversion and stringify tasks include building the color object from its coordinates, because that is part of each library's normal call sequence.
+
+### Inputs
+
+- **Size:** 10,000 inputs per task. The parsing inputs and the conversion/stringify inputs are generated separately.
+- **Models:** random colors from `Color.random()`, kept only if the model is `rgb`, `hsl`, `lab`, or `lch` and every coordinate is a finite number.
+- **Parsing inputs:** each random color serialized with `toString({ precision: 1, units: true })`, for example `lch(31% 104.7 271.7deg)`. Only function-style strings are used; hex and named colors are not part of this benchmark.
+- **Conversion and stringify inputs:** a model name and coordinates, in Saturon's coordinate ranges (`rgb` channels 0–255, `hsl` saturation and lightness 0–100).
+- **Conversion targets:** one of `rgb`, `hsl`, `lab`, or `lch` per input, chosen with a fixed-seed generator (seed 42). Because targets are independent of the source model, about a quarter of the conversions are to the model the color already has.
+- **Fresh data every run:** the random colors are not seeded, so each run uses a different dataset. Only the target sequence is fixed.
+
+### API calls used
+
+| Library         | Parse                    | Convert                                    | Stringify                             |
+| --------------- | ------------------------ | ------------------------------------------ | ------------------------------------- |
+| Saturon (class) | `Color.from(str).coords` | `new Color(model, coords).in(target)`      | `new Color(model, coords).toString()` |
+| Saturon (utils) | `parse(str).coords`      | `convert({ model, coords }, target)`       | `format({ model, coords }, model)`    |
+| chroma-js       | `chroma(str).rgba()`     | `chroma(coords, model)[target]()`          | `chroma(coords, model).css(model)`    |
+| colorjs.io      | `new Color(str).coords`  | `new Color(space, coords).to(targetSpace)` | `new Color(space, coords).toString()` |
+| culori          | `parse(str)`             | `converter(target)(colorObject)`           | `formatCss(colorObject)`              |
+
+- "Saturon (class)" uses the [`Color`](/docs/api/color-class) class. "Saturon (utils)" uses the tree-shakable functions [`parse`](/docs/api/subpaths/parse), [`convert`](/docs/api/subpaths/convert), and [`format`](/docs/api/subpaths/format).
+- For colorjs.io, `rgb` maps to its `srgb` space; `hsl`, `lab`, and `lch` map to the space of the same name.
+- For culori, the four converters are created once before timing. The color object (`mode` plus the three channels) is built inside the timed loop, like the other libraries' constructors.
+- Each library serializes with its own serializer, so the output strings differ in syntax and precision between libraries.
+
+## Methodology
+
+- All libraries receive identical input strings or identical `model` and `coords` values. Dataset generation, the JSON round trip of the dataset, and culori's converter creation happen before any timing.
+- Parsing returns each library's native numbers: coordinates in the parsed color's own model for Saturon and colorjs.io, sRGB values for chroma-js, and a color object for culori. The conversion and stringify tasks produce each library's own result type.
+- Each timed function keeps the last result of its loop and passes it to mitata's `do_not_optimize`, so the engine can't discard the work as dead code.
+- Mitata warms up each benchmark before it measures. Saturon keeps a global cache of its conversion graph, conversion paths, component ranges, and model layouts, and that cache is warm during the timed runs. It doesn't cache parse results between calls, so repeating the same input strings doesn't speed up Saturon's parsing. The other libraries were not audited for internal caching.
+- The script runs as `node bench.mjs`, with no extra flags.
+- The versions in the tables are the ones locked in `pnpm-lock.yaml`. mitata is `1.0.34`.
+- Numbers come from one run on the hardware listed above. The min-max columns show the spread across mitata's samples within that run. Absolute times will differ on your machine; compare the relative numbers.
+
+## Limitations
+
+- Libraries don't do the same amount of work. Saturon validates input against the full CSS color grammar, and it accepts syntax that some of these libraries don't parse at all. A faster library that accepts less is not doing the same job. This benchmark uses only `rgb`, `hsl`, `lab`, and `lch` colors, so Saturon's wider syntax support isn't measured here.
+- The parsing strings are produced by Saturon's own serializer, and the conversion inputs use Saturon's coordinate ranges without rescaling per library. Some libraries expect other ranges for the same model (for example, culori expects `rgb` channels from 0 to 1), so they receive values outside their usual range.
+- The benchmark measures time only. It doesn't compare the values each library returns.
+- Each timed operation is tiny and repeated many times, which favors code that the JIT compiler optimizes well. Real applications also pay for allocation, bundling, and cold starts.
+- Only `rgb`, `hsl`, `lab`, and `lch` are used, and only function-style strings are parsed. Other models, hex colors, and named colors behave differently.
+- Mixing, interpolation, gamut mapping, contrast, and color difference are not measured. Memory use isn't compared either, although mitata prints heap figures in its raw output. For bundle size, see [Tree Shakability & Bundle Size](/docs/guides/tree-shakability).
+- All numbers come from a single Windows machine on one Node.js version.
+- Every library here changes over time. These numbers describe the versions listed on the date listed.
+
+## Reproduce the results
+
+From the repository root:
+
+```bash
+pnpm install
+pnpm bench
+```
+
+The benchmark lives in [`apps/benchmarks`](https://github.com/ganemedelabs/saturon/tree/main/apps/benchmarks). It generates its dataset in memory on every run, so no data files are needed, and your numbers will vary slightly from the ones above.
+
+## Found a problem?
+
+If you think a benchmark is unfair, uses a library incorrectly, or is out of date, please [open an issue or pull request](https://github.com/ganemedelabs/saturon). Benchmarks only help if they're accurate, and corrections from library authors are welcome.

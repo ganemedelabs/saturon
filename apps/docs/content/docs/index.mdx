@@ -10,6 +10,24 @@ Saturon is a JavaScript color engine that's flexible, precise, and fully compati
 
 What makes Saturon truly stand out is its grammar-aware color parser. It understands the entire CSS `<color>` syntax — including modern and experimental formats like `color-mix()` and relative colors (e.g. `hsl(from rebeccapurple h calc(s / 2) l)`).
 
+```typescript
+Color.from(
+    `color-mix(
+        in oklch longer hue,
+        color(from hsl(240deg none calc(-infinity) / 0.5) display-p3 r calc(g + b) 100 / alpha),
+        rebeccapurple 20%
+    )`
+).to("hwb");
+```
+
+## Why Saturon
+
+- Strings are parsed using a grammar-aware engine rather than standard pattern matching, allowing complex color functions to nest freely.
+- Its parsing and conversion performance outperforms Color.js even while enforcing strict, full grammar validation (see [Benchmarks](/docs/benchmarks)).
+- All ported Web Platform Tests cases run automatically in CI to ensure high spec conformance (see [Conformance](/docs/conformance)).
+- Custom color models and relative color syntax can be registered easily, enabling `color-mix()` and other utilities to work with them seamlessly (see [Recipes](/docs/recipes)).
+- The package is fully tree-shakable, letting you import the primary `Color` class or only individual functions as needed (see [Tree Shakability](/docs/guides/tree-shakability)).
+
 ## Installation
 
 You can install Saturon via npm or use it directly in browsers through a CDN.

@@ -17,7 +17,7 @@ Developers interact with the extensibility architecture primarily through two un
 import { register, unregister } from "saturon/registry";
 
 // 1. Batch Registering Custom Logic
-register("fit-method", [
+register("fit-methods", [
     {
         name: "custom-clipping",
         value: (colorData) => {
@@ -28,7 +28,7 @@ register("fit-method", [
 ]);
 
 // 2. Unregistering by Category and Target Name
-unregister("fit-method", ["custom-clipping"]);
+unregister("fit-methods", ["custom-clipping"]);
 ```
 
 These entry points act as unified dispatchers. They route the incoming category (`RegistererType`) to its corresponding handler in `registerers` or `unregisterers` before executing engine-wide cleanup tasks.
@@ -41,15 +41,15 @@ Under the hood, the architecture avoids monolithic initialization and cleanup lo
 
 The architecture supports seven distinct registration categories:
 
-| Category         | Purpose                                                      | Mutated Engine State                                  |
-| ---------------- | ------------------------------------------------------------ | ----------------------------------------------------- |
-| `color-function` | Injects custom mathematical color functions/models.          | `colorModels`, `formatters`, `parsers`, `grammarMap`  |
-| `color-space`    | Registers matrix-based color spaces using bridge transforms. | `colorSpaces`, `colorModels`, `parsers`, `grammarMap` |
-| `parser`         | Injects custom CSS string evaluation logic or grammar nodes. | `parsers`, `grammarMap`, `validators`                 |
-| `formatter`      | Appends custom string serialization outputs.                 | `formatters`                                          |
-| `shortcut`       | Defines quick-matching parser overrides.                     | `shortcuts`, `grammarMap`                             |
-| `fit-method`     | Injects custom gamut mapping algorithms.                     | `fitMethods`                                          |
-| `named-color`    | Adds hardcoded RGB color lookup tokens.                      | `namedColors`                                         |
+| Category       | Purpose                                                      | Mutated Engine State                                  |
+| -------------- | ------------------------------------------------------------ | ----------------------------------------------------- |
+| `color-models` | Injects custom mathematical color functions/models.          | `colorModels`, `formatters`, `parsers`, `grammarMap`  |
+| `color-spaces` | Registers matrix-based color spaces using bridge transforms. | `colorSpaces`, `colorModels`, `parsers`, `grammarMap` |
+| `parsers`      | Injects custom CSS string evaluation logic or grammar nodes. | `parsers`, `grammarMap`, `validators`                 |
+| `formatters`   | Appends custom string serialization outputs.                 | `formatters`                                          |
+| `shortcuts`    | Defines quick-matching parser overrides.                     | `shortcuts`, `grammarMap`                             |
+| `fit-methods`  | Injects custom gamut mapping algorithms.                     | `fitMethods`                                          |
+| `named-colors` | Adds hardcoded RGB color lookup tokens.                      | `namedColors`                                         |
 
 When `unregister()` is invoked, the respective `unregisterers` handler deletes the target key directly from the internal state lookup table (e.g., removing a color model from `colorModels` or a formatter from `formatters`), restoring the engine to its pre-plugin state.
 
@@ -63,7 +63,7 @@ The most powerful feature of the registry is how it dynamically mutates and clea
 
 ### Auto-Generating Syntax Rules
 
-When a custom `"color-function"` or `"color-space"` is registered:
+When custom `"color-models"` or `"color-spaces"` are registered:
 
 1. Saturon inspects its component layout (e.g., checking for polar components like `hue` vs rectangular coordinates).
 2. It generates complete AST parsing expressions for standard, legacy, and CSS Level 5 Relative Color syntax (`from <color>`).
@@ -82,7 +82,7 @@ If no custom spaces remain, the master choice rule safely evaluates to an empty 
 
 ### The `appendTo` Extension Pattern
 
-When custom `"parser"` rules or `"shortcut"` overrides use the `appendTo` property, the engine creates a non-destructive dependency chain:
+When custom `"parsers"` rules or `"shortcuts"` overrides use the `appendTo` property, the engine creates a non-destructive dependency chain:
 
 1. The original target rule (e.g., `<color>`) is duplicated into a protected `<rule-core-base>` node.
 2. The primary rule is overridden with a dynamic choice node: `[ <rule-core-base> | <custom-extension> ]`.
@@ -123,8 +123,8 @@ Flushing the cache guarantees that the very next color operation recalculates cl
 
 To maintain stability across registration and unregistration lifecycles, registry handlers enforce strict validation checkpoints before committing state changes:
 
-- **Type Safety Checks**: Confirms matrices (`toBridgeMatrix`, `fromBridgeMatrix`) are strictly formatted as 2D numeric arrays.
-- **Bridge Model Existence**: Ensures the declared `bridge` property references an actual, existing space in `colorModels` (preventing disconnected sub-graphs).
-- **Duplicate Prevention**: Prevents overwriting existing named colors, formatters, or fit methods without explicit developer intervention.
+- Confirms matrices (`toBridgeMatrix`, `fromBridgeMatrix`) are strictly formatted as 2D numeric arrays.
+- Ensures the declared `bridge` property references an actual, existing space in `colorModels` (preventing disconnected sub-graphs).
+- Prevents overwriting existing named colors, formatters, or fit methods without explicit developer intervention.
 
 Once validated, registered components instantly become accessible across all architectural layers. Upon calling `unregister()`, all associated parsers, grammar rules, formatters, and graph nodes are cleanly excised—leaving zero residual footprint in the engine.

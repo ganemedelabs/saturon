@@ -5,7 +5,7 @@
         "rootDir": "src",
         "declaration": true,
         "noEmit": false,
-        "types": ["jest"]
+        "types": ["jest", "node"]
     },
     "include": ["src/**/*"],
     "exclude": ["node_modules", "dist", "eslint.config.mts"]

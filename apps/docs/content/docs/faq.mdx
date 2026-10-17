@@ -229,12 +229,42 @@ See [Guides: Accessibility & Color Difference Checks](./guides/accessibility-che
 
 ---
 
+## Why doesn't Saturon have more color models built in?
+
+Saturon's core implements what the CSS Color Module Levels 4 & 5 define: the `rgb()`, `hsl()`, `hwb()`, `lab()`, `lch()`, `oklab()`, and `oklch()` functions, plus the predefined `color()` spaces. Models and spaces defined elsewhere (HSV, HSI, Luv, LCH(uv), JzAzBz, ICtCp, Rec. 2100, and so on) aren't built in. They're available as [recipes](./recipes) that you register yourself.
+
+This is intentional:
+
+- The core behaves like CSS. Everything built in is something a browser understands, so Saturon's default input and output stays valid CSS.
+- You only ship what you use. Spaces you never touch add nothing to your bundle.
+- Registered models aren't second-class. They use the same mechanism as the built-ins, and the parser generates their grammar for you. Once you register `hsv`, all of this works with no extra code:
+
+```ts
+import { Color } from "saturon";
+
+Color.isValid("hsv(from yellow h calc(s / 2) v)"); // true
+Color.isValid("color-mix(in hsv decreasing hue, red, black)"); // true
+Color.from("pink").to("hsv");
+```
+
+Color spaces work the same way. After registering `rec2100-hlg`, `color(rec2100-hlg 1 0 0)` is valid and `new Color("rec2100-hlg", [1, 0, 0])` works like any built-in space.
+
+<Callout type="warn" title="Registered syntax is Saturon-only">
+    Strings that use a registered model, such as `hsv(...)` or `color(rec2100-hlg ...)`, are only understood by Saturon.
+    Browsers will reject them. Convert to a built-in output such as `rgb` or `oklch` with `to()` before handing a color
+    to CSS.
+</Callout>
+
+See [Recipes](./recipes) for ready-made models and spaces, and [Guides: The Registry API](./guides/registry) for how registration works.
+
+---
+
 ## How do I register a custom color syntax?
 
 Use the static `Color.register()` method to define new syntaxes, color functions, named colors, or fit methods.
 
 ```ts
-Color.register("color-function", [
+Color.register("color-models", [
     {
         name: "hsv",
         value: {

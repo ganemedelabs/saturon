@@ -2,20 +2,16 @@
 
 import js from "@eslint/js";
 import tseslint from "typescript-eslint";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
 import { Linter } from "eslint";
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+import globals from "globals";
 
 export const baseConfig: Linter.Config[] = [
     js.configs.recommended,
     ...tseslint.configs.recommended,
     {
         languageOptions: {
-            parserOptions: {
-                projectService: true,
-                tsconfigRootDir: __dirname,
+            globals: {
+                ...globals.node,
             },
         },
         rules: {

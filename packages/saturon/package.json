@@ -1,6 +1,6 @@
 {
     "name": "saturon",
-    "version": "0.4.4",
+    "version": "0.4.5",
     "description": "A runtime-extensible JavaScript library for parsing, converting, and manipulating colors with full CSS spec support.",
     "type": "module",
     "private": false,
@@ -283,7 +283,7 @@
     "devDependencies": {
         "@eslint/js": "^10.0.1",
         "@types/jest": "^30.0.0",
-        "@types/node": "^24.6.2",
+        "@types/node": "^24.13.6",
         "esbuild": "^0.25.11",
         "eslint": "^10.3.0",
         "jest": "^30.2.0",

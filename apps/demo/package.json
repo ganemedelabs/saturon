@@ -1,0 +1,21 @@
+{
+    "name": "saturon-demo",
+    "private": true,
+    "version": "1.0.0",
+    "main": "full.js",
+    "scripts": {
+        "build:full": "vite build --mode full",
+        "build:utils": "vite build --mode utils",
+        "build": "npm run build:full && npm run build:utils"
+    },
+    "sideEffects": false,
+    "license": "MIT",
+    "type": "module",
+    "dependencies": {
+        "saturon": "workspace:*"
+    },
+    "devDependencies": {
+        "rollup-plugin-visualizer": "^7.1.1",
+        "vite": "^8.3.4"
+    }
+}

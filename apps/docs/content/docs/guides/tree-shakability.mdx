@@ -3,15 +3,15 @@ title: Tree Shakability & Bundle Size
 description: Optimize your bundle size by using Saturon's standalone functional subpaths.
 ---
 
-Saturon is designed to be highly modular. While the `Color` class provides a convenient, chainable, object-oriented API, it requires bundling the entire class and its associated internal methods.
+Saturon is designed to be highly modular. While the `Color` class provides a convenient, chainable, object-oriented API, importing it bundles the entire class and everything it depends on.
 
-If you are building for the web and need strict bundle-size optimizations, Saturon allows you to bypass the `Color` class entirely. Every method powering the class is exposed as a pure, standalone function via utility subpaths.
+If you are building for the web and need strict bundle-size optimizations, Saturon lets you bypass the `Color` class entirely. The logic behind the class's methods is also exposed as standalone functions through utility subpaths.
 
 ## The Trade-off: OOP vs. Functional
 
-When you use the object-oriented approach, your bundler (like Webpack, Rollup, or Vite) cannot safely remove unused methods from the `Color` class, because JavaScript classes are inherently difficult to tree-shake.
+Methods live on a class's prototype, so your bundler (like Webpack, Rollup, or Vite) generally can't remove the ones you don't call. Importing `Color` therefore pulls in the whole library.
 
-By importing specific subpaths, you adopt a functional programming paradigm. Your bundler can easily drop any Saturon functions you don't explicitly import, resulting in a dramatically smaller footprint.
+By importing specific subpaths, you adopt a functional style instead. Saturon ships as ES modules and declares `sideEffects: false`, so your bundler can drop any Saturon code that your imports don't reach. How much that saves depends on which subpaths you pick: see [Measured bundle sizes](#measured-bundle-sizes).
 
 ---
 
@@ -26,7 +26,7 @@ This approach is highly readable and quick to write, but it pulls in the full `C
 ```ts
 import { Color } from "saturon";
 
-const myColor = new Color("red")
+const myColor = Color.from("red")
     .in("lch")
     .with({ l: (l) => l + 20 })
     .toString();
@@ -34,15 +34,15 @@ const myColor = new Color("red")
 console.log(myColor); // lch(...)
 ```
 
-### 2. The Tree-Shakable Way (Optimized bundle)
+### 2. The Tree-Shakable Way (Smaller bundle)
 
-By importing only the specific utilities you need, you ensure that functions like `colorMix`, `contrast`, or `gamut` are completely stripped from your final build if you don't use them.
+By importing only the specific utilities you need, your bundler can leave out everything those utilities don't depend on. Each utility is a named export from its own subpath.
 
 ```ts
-import parse from "saturon/parse";
-import convert from "saturon/convert";
-import updateColor from "saturon/updateColor";
-import format from "saturon/format";
+import { parse } from "saturon/parse";
+import { convert } from "saturon/convert";
+import { updateColor } from "saturon/updateColor";
+import { format } from "saturon/format";
 
 // 1. Parse the initial string into raw color data
 const raw = parse("red");
@@ -59,14 +59,16 @@ const result = format({ model: "lch", coords: lighterLchCoords }, "lch");
 console.log(result); // lch(...)
 ```
 
+This example never touches the `Color` class, `isValid`, `interpolate`, `scale`, `contrast`, `random`, or the registry, so none of that code can end up in your bundle. It does import `parse`, though, and parsing depends on much of the library: the grammar, `calc()` support, `color-mix()`, and gamut fitting. Statically, the four imports above reach 25 of Saturon's 32 modules. If bundle size is the goal, import `saturon/convert` and the other lightweight subpaths where you can, and measure your own build.
+
 <Callout type="idea" title="Tip for modern JS">
-Because the subpaths rely on pure functions that take data as the first argument, they pair beautifully with functional composition utilities (like `pipe` or `compose`) or the upcoming JavaScript Pipeline Operator (`|>`).
+Because the subpaths are plain functions that take the color data as their first argument, they are easy to chain with functional composition helpers, or with the proposed JavaScript pipeline operator (`|>`). That operator is not part of the language yet and needs a transpiler, and the `%` placeholder shown here may change.
 
 ```ts
-import parse from "saturon/parse";
-import convert from "saturon/convert";
-import updateColor from "saturon/updateColor";
-import format from "saturon/format";
+import { parse } from "saturon/parse";
+import { convert } from "saturon/convert";
+import { updateColor } from "saturon/updateColor";
+import { format } from "saturon/format";
 
 const result = "red"
   |> parse(%)
@@ -78,6 +80,45 @@ console.log(result); // lch(...)
 ```
 
 </Callout>
+
+---
+
+## Measured bundle sizes
+
+Production build with Vite 8 and Saturon 0.4.4, using the entry files in `apps/demo`. Sizes are in kB (1 kB = 1,000 bytes).
+
+| Import                        | Saturon modules | Raw    | gzip  | brotli |
+| ----------------------------- | --------------- | ------ | ----- | ------ |
+| `Color` class (`saturon`)     | 32              | 118.40 | 35.28 | 31.04  |
+| `convert` (`saturon/convert`) | 5               | 18.83  | 5.51  | 4.90   |
+
+Each entry re-exports a single name: `export { Color } from "saturon"` for the first row and `export { convert } from "saturon/convert"` for the second. Importing `convert` alone is about 6× smaller than importing `Color`.
+
+<Callout type="info" title="How to read these numbers">
+    - This is the best case. `convert` has few dependencies. A pipeline that also imports `parse`, like the example
+    above, reaches most of the library and will be larger.
+
+    - The output is not minified. The demo uses a Vite
+    library build, whose output keeps readable code, so absolute sizes are larger than what you would ship. Compare the
+    relative sizes, not the absolute ones.
+
+    - gzip and brotli are summed per module. The figures come from
+    [rollup-plugin-visualizer](https://github.com/btd/rollup-plugin-visualizer), which compresses each module
+    separately. Compressing the final file as one stream gives slightly smaller numbers.
+
+</Callout>
+
+### Reproduce the measurements
+
+From the repository root:
+
+```bash
+pnpm install
+pnpm build:lib
+pnpm build:demo
+```
+
+This writes `stats-full.html` and `stats-utils.html` in `apps/demo`, one treemap per build. The entry files are `apps/demo/src/full.ts` and `apps/demo/src/utils.ts`.
 
 ---
 

@@ -1,0 +1,90 @@
+---
+title: Conformance
+icon: ShieldCheck
+description: How Saturon is tested against the Web Platform Tests, the current results, and the known gaps
+---
+
+Saturon's parser is built from the CSS color grammar rather than a set of per-format patterns. The most direct way to check that claim is to run it against the same tests browsers use.
+
+Saturon's test suite clones the [web-platform-tests](https://github.com/web-platform-tests/wpt) (WPT) repository, the shared cross-browser test suite for the web platform, and checks the color strings in its CSS color parsing tests with `Color.isValid()`. Each string is expected to be either valid or invalid, and Saturon has to agree.
+
+## Current results
+
+| Suite                      | Cases | Passing | Pass rate |
+| -------------------------- | ----- | ------- | --------- |
+| WPT color tests (validity) | 2660  | 2360    | 88.7%     |
+
+- **WPT commit:** [`a15a314`](https://github.com/web-platform-tests/wpt/commit/a15a3144858f9e81c11abf28858be4cd2a64e80e)
+- **Saturon version:** `v0.4.4`
+- **Last run:** `October 17, 2026`
+
+<Callout type="warn" title="Level 6 isn't supported yet">
+    Many of the 300 cases that don't pass use syntax from the [CSS Color Module Level
+    6](https://www.w3.org/TR/css-color-6/) draft, most visibly `color-layers()`, which accounts for 153 valid-syntax
+    cases on its own. Saturon targets [Levels 4 and 5](https://www.w3.org/TR/css-color-5/) today. Level 6 support may be
+    added in the future.
+</Callout>
+
+## How the tests run
+
+The test clones WPT (shallow and sparse, only `css/css-color`) and reads every `.html` file in `css/css-color/parsing`. Each file's inline scripts are evaluated in a sandbox that records calls to WPT's `test_valid_value`, `test_invalid_value`, and `test_computed_value` helpers. Only cases for the `color` property are kept.
+
+Two kinds of cases are left out, 61 in total, because they can't be judged from the string alone:
+
+- Strings containing `var()` (1 case)
+- Strings containing `currentcolor` (60 cases)
+
+The 2660 cases that remain break down like this:
+
+| WPT helper            | Cases | Saturon must |
+| --------------------- | ----- | ------------ |
+| `test_valid_value`    | 713   | accept it    |
+| `test_invalid_value`  | 811   | reject it    |
+| `test_computed_value` | 1136  | accept it    |
+
+## What is tested
+
+Each case checks one direction of the grammar:
+
+- Valid strings must be accepted. For example `rgb(none none none / .5)` and `rgb(calc(infinity), 0, 0)`.
+- Invalid strings must be rejected. For example `rgb(none, none, none)` (legacy comma syntax can't use `none`) and `rgb(10%, 20, 30%)` (legacy syntax can't mix percentages and numbers).
+
+Rejecting bad input matters as much as accepting good input, since a lenient parser can pass every valid case and still accept strings a browser would throw away.
+
+The tests cover, among others:
+
+- Named colors, system colors, and hex colors
+- `rgb()`, `hsl()`, `hwb()`, `lab()`, `lch()`, `oklab()`, and `oklch()`
+- `color()` across its predefined spaces
+- `color-mix()`
+- Relative color syntax, including nested origin colors and channel keywords
+- The `none` keyword, and `calc()` with `infinity` and `NaN`
+
+## What isn't tested
+
+This suite checks validity only: whether a string is accepted or rejected. It does not check the computed values or serialized output of a parsed color. That includes the 1136 computed-value cases, which WPT uses to check what a browser resolves a color to, but which here only have to be accepted as valid. Passing the suite means Saturon agrees with browsers about what is valid CSS color syntax, not that every conversion matches a browser to the last digit.
+
+It also leaves out:
+
+- Cases for properties other than `color` (`background-color` and `opacity`)
+- The `var()` and `currentcolor` cases listed above
+- Everything outside `css/css-color/parsing`
+
+## Run it yourself
+
+The test lives at [`packages/saturon/src/tests/wpt.test.ts`](https://github.com/ganemedelabs/saturon/blob/main/packages/saturon/src/tests/wpt.test.ts). It needs `git` and network access, since it clones WPT every time it runs.
+
+```bash
+git clone https://github.com/ganemedelabs/saturon.git
+cd saturon
+pnpm install
+pnpm test wpt
+```
+
+The test always clones the latest WPT, so results can change as WPT adds or edits cases. The numbers on this page come from the commit listed above, so a run today may not match them exactly.
+
+## Found a disagreement?
+
+If Saturon accepts a string that a browser rejects, or rejects one a browser accepts, please [open an issue](https://github.com/ganemedelabs/saturon/issues) with the exact string and the browser version you tested in.
+
+To see how the parser works, read [Dual-Path Parsing](/docs/architecture/parsing).

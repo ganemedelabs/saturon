@@ -15,7 +15,7 @@ dist
 out/
 build
 *.tsbuildinfo
-apps/benchmark/data/
+apps/demo/**/*.html
 
 # misc
 .DS_Store
@@ -25,6 +25,7 @@ apps/benchmark/data/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+package-lock.json
 
 # others
 .env*.local
