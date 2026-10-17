@@ -40,12 +40,12 @@ import { Color } from "saturon";
 Color.configure({
     colorProfiles: {
         "device-cmyk": {
-            src: "https://example.org/Coated_Fogra39L_VIGC_300.icc",
+            src: "https://example.org/profile.icc",
             renderingIntent: "relative-colorimetric",
             components: ["c", "m", "y", "k"],
-            toLab: (cmyk, intent) => {
-                // your CMM call goes here — see the worked example below
-                return myCmm.cmykToLab(cmyk, { profile: "fogra39", intent });
+            toLab: (cmyk: number[]) => {
+                // Use your CMM to convert CMYK → Lab here
+                return cmykToLab(cmyk);
             },
         },
     },
@@ -123,11 +123,7 @@ Color.configure({
             src: "/profiles/Coated_Fogra39L_VIGC_300.icc",
             renderingIntent: "relative-colorimetric",
             components: ["c", "m", "y", "k"],
-            toLab: ([c, m, y, k]: number[]) => {
-                // third arg = pixel count (1 color -> 1)
-                const [L, a, b] = lcms.cmsDoTransform(transform, [c, m, y, k], 1);
-                return [L, a, b];
-            },
+            toLab: (cmyk: number[]) => lcms.cmsDoTransform(transform, cmyk, 1),
         },
     },
 });
@@ -163,8 +159,6 @@ Color.configure({
     },
 });
 ```
-
-A rough guide for picking one:
 
 A rough guide for picking one:
 

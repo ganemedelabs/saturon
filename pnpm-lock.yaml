@@ -34,6 +34,22 @@ importers:
         specifier: ^1.0.34
         version: 1.0.34
 
+  apps/conformance:
+    dependencies:
+      saturon:
+        specifier: workspace:*
+        version: link:../../packages/saturon
+    devDependencies:
+      chroma-js:
+        specifier: ^3.2.0
+        version: 3.2.0
+      colorjs.io:
+        specifier: ^0.7.1
+        version: 0.7.1
+      culori:
+        specifier: ^4.0.2
+        version: 4.0.2
+
   apps/demo:
     dependencies:
       saturon:

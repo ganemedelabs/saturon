@@ -8,6 +8,7 @@ import { Color as Saturon } from "saturon";
 import { parse as saturonParse } from "saturon/parse";
 import { convert as saturonConvert } from "saturon/convert";
 import { format as saturonFormat } from "saturon/format";
+import { namedColors } from "saturon/namedColors";
 import chroma from "chroma-js";
 import ColorJS from "colorjs.io";
 import { parse as culoriParse, converter as culoriConverter, formatCss as culoriFormat } from "culori";
@@ -47,6 +48,11 @@ writeFileSync(conversionsPath, JSON.stringify(conversions));
 const colorStrings = JSON.parse(readFileSync(colorsPath, "utf8"));
 const benchConversions = JSON.parse(readFileSync(conversionsPath, "utf8"));
 
+const hexStrings = Array.from({ length: COUNT }, () => Color.random().to("hex-color"));
+
+const nameKeys = Object.keys(namedColors);
+const namedStrings = Array.from({ length: COUNT }, (_, i) => nameKeys[i % nameKeys.length]);
+
 const MODELS = ["rgb", "hsl", "lab", "lch"];
 
 function mulberry32(seed) {
@@ -70,39 +76,45 @@ function culoriColor(model, [a, b, c]) {
     return { mode: model, [ch[0]]: a, [ch[1]]: b, [ch[2]]: c };
 }
 
-summary(() => {
-    group("parse: color string -> numbers", () => {
-        bench("saturon (class)", () => {
-            let sink;
-            for (let i = 0; i < colorStrings.length; i++) sink = Saturon.from(colorStrings[i]).coords;
-            return do_not_optimize(sink);
-        });
+function parseGroup(title, inputs) {
+    summary(() => {
+        group(title, () => {
+            bench("saturon (class)", () => {
+                let sink;
+                for (let i = 0; i < inputs.length; i++) sink = Saturon.from(inputs[i]).coords;
+                return do_not_optimize(sink);
+            });
 
-        bench("saturon (utils)", () => {
-            let sink;
-            for (let i = 0; i < colorStrings.length; i++) sink = saturonParse(colorStrings[i]).coords;
-            return do_not_optimize(sink);
-        });
+            bench("saturon (utils)", () => {
+                let sink;
+                for (let i = 0; i < inputs.length; i++) sink = saturonParse(inputs[i]).coords;
+                return do_not_optimize(sink);
+            });
 
-        bench("chroma-js", () => {
-            let sink;
-            for (let i = 0; i < colorStrings.length; i++) sink = chroma(colorStrings[i]).rgba();
-            return do_not_optimize(sink);
-        });
+            bench("chroma-js", () => {
+                let sink;
+                for (let i = 0; i < inputs.length; i++) sink = chroma(inputs[i]).rgba();
+                return do_not_optimize(sink);
+            });
 
-        bench("colorjs.io", () => {
-            let sink;
-            for (let i = 0; i < colorStrings.length; i++) sink = new ColorJS(colorStrings[i]).coords;
-            return do_not_optimize(sink);
-        });
+            bench("colorjs.io", () => {
+                let sink;
+                for (let i = 0; i < inputs.length; i++) sink = new ColorJS(inputs[i]).coords;
+                return do_not_optimize(sink);
+            });
 
-        bench("culori", () => {
-            let sink;
-            for (let i = 0; i < colorStrings.length; i++) sink = culoriParse(colorStrings[i]);
-            return do_not_optimize(sink);
+            bench("culori", () => {
+                let sink;
+                for (let i = 0; i < inputs.length; i++) sink = culoriParse(inputs[i]);
+                return do_not_optimize(sink);
+            });
         });
     });
-});
+}
+
+parseGroup("parse: color string -> numbers", colorStrings);
+parseGroup("parse: hex color string -> numbers", hexStrings);
+parseGroup("parse: named color -> numbers", namedStrings);
 
 summary(() => {
     group("convert: { model, coords } -> random target model", () => {

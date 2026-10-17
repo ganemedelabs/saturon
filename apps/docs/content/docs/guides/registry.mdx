@@ -12,13 +12,13 @@ All extensions are managed through two batch-processing methods: `register()` an
 ## API Signature
 
 ```ts
-import { register, unregister } from "saturon/registry";
+import { Color } from "saturon";
 
 // Add new features
-register(category, [{ name: "identifier", value: implementation }]);
+Color.register(category, [{ name: "identifier", value: implementation }]);
 
 // Remove features and flush caches
-unregister(category, ["identifier"]);
+Color.unregister(category, ["identifier"]);
 ```
 
 Saturon supports seven distinct registration categories.
@@ -32,7 +32,7 @@ Inject hardcoded color aliases into the CSS string parser. These become instantl
 ### Expected Value: `[R, G, B]` (Array of 3 numbers, 0-255)
 
 ```ts
-register("named-colors", [
+Color.register("named-colors", [
     { name: "brandprimary", value: [88, 101, 242] },
     { name: "brandaccent", value: [254, 231, 92] },
 ]);
@@ -50,7 +50,7 @@ Registers a standalone CSS color model/function (e.g., `cmyk()`, `hsi()`). This 
 ### Expected Value: `ColorModelConverter`
 
 ```ts
-register("color-models", [
+Color.register("color-models", [
     {
         name: "my-rgb",
         value: {
@@ -80,7 +80,7 @@ Registers matrix-based color spaces for use inside the CSS `color(...)` function
 ### Expected Value: `ColorSpaceConverter`
 
 ```ts
-register("color-spaces", [
+Color.register("color-spaces", [
     {
         name: "custom-p3",
         value: {
@@ -114,7 +114,7 @@ Adds a new serialization format for `.to()` and `.toString()`. Formatters requir
 ### Expected Value: `ColorFormatter`
 
 ```ts
-register("formatters", [
+Color.register("formatters", [
     {
         name: "hex-alpha",
         value: {
@@ -144,7 +144,7 @@ If you need Saturon to understand completely new string syntaxes, use the `"pars
 Shortcuts are fast, regex-based interceptors evaluated before the main AST parser.
 
 ```ts
-register("shortcuts", [
+Color.register("shortcuts", [
     {
         name: "<my-shortcut>",
         value: {
@@ -165,7 +165,7 @@ register("shortcuts", [
 For complex grammar, inject W3C-style syntactical nodes directly into `grammarMap`.
 
 ```ts
-register("parsers", [
+Color.register("parsers", [
     {
         name: "<custom-prefix-syntax>",
         value: {
@@ -189,7 +189,7 @@ Defines custom algorithms for mapping out-of-gamut colors to safe values during 
 ### Expected Value: `FitFunction`
 
 ```ts
-register("fit-methods", [
+Color.register("fit-methods", [
     {
         name: "ceiling-clip",
         value: (colorData) => {
@@ -212,10 +212,10 @@ To cleanly remove a plugin, pass its category and name to `unregister()`.
 Saturon will automatically prune the grammar trees, drop the parsers, and flush the global shortest-path caches to guarantee there are no dead routing edges.
 
 ```ts
-import { unregister } from "saturon/registry";
+import { Color } from "saturon";
 
-unregister("color-models", ["my-rgb"]);
-unregister("named-colors", ["brandprimary", "brandaccent"]);
+Color.unregister("color-models", ["my-rgb"]);
+Color.unregister("named-colors", ["brandprimary", "brandaccent"]);
 ```
 
 ---

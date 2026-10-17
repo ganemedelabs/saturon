@@ -140,10 +140,10 @@ console.log(p3Color.to("rgb", { fit: "css-gamut-map" }));
 If you want to enforce a specific gamut mapping algorithm globally across your entire application, you can set it in Saturon's configuration:
 
 ```ts
-import { configure } from "saturon/utils";
+import { Color } from "saturon";
 
 // Make all formatters and within() calls use W3C perceptual mapping by default
-configure({
+Color.configure({
     defaults: { fit: "css-gamut-map" },
 });
 

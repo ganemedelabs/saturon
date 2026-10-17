@@ -15,7 +15,6 @@ dist
 out/
 build
 *.tsbuildinfo
-apps/demo/**/*.html
 
 # misc
 .DS_Store

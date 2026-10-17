@@ -14,10 +14,10 @@ Here is an architectural breakdown of how Saturon's extensibility engine process
 Developers interact with the extensibility architecture primarily through two unified entry points: `register()` and `unregister()`. Both functions operate on batches to optimize grammar compilation and cache invalidation cycles.
 
 ```ts
-import { register, unregister } from "saturon/registry";
+import { Color } from "saturon";
 
 // 1. Batch Registering Custom Logic
-register("fit-methods", [
+Color.register("fit-methods", [
     {
         name: "custom-clipping",
         value: (colorData) => {
@@ -28,7 +28,7 @@ register("fit-methods", [
 ]);
 
 // 2. Unregistering by Category and Target Name
-unregister("fit-methods", ["custom-clipping"]);
+Color.unregister("fit-methods", ["custom-clipping"]);
 ```
 
 These entry points act as unified dispatchers. They route the incoming category (`RegistererType`) to its corresponding handler in `registerers` or `unregisterers` before executing engine-wide cleanup tasks.

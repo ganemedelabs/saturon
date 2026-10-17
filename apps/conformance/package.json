@@ -1,0 +1,17 @@
+{
+    "name": "saturon-conformance",
+    "private": true,
+    "type": "module",
+    "version": "1.0.0",
+    "scripts": {
+        "wpt": "node wpt.mjs"
+    },
+    "dependencies": {
+        "saturon": "workspace:*"
+    },
+    "devDependencies": {
+        "chroma-js": "^3.2.0",
+        "colorjs.io": "^0.7.1",
+        "culori": "^4.0.2"
+    }
+}

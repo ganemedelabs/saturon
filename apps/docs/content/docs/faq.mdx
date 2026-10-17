@@ -194,9 +194,9 @@ The `contrast()` method computes the WCAG 2.1 contrast ratio between two colors,
 ```ts
 import { Color } from "saturon";
 
-const textColor = Color.from("rgb(50 50 50)");;.
+const textColor = Color.from("rgb(50 50 50)");
 const bgColor = Color.from("white");
-console.log(textColor.contrast(bgColor)); // e.g., 12.8 (accessible)
+console.log(Color.contrast(textColor, bgColor)); // e.g., 12.8 (accessible)
 ```
 
 <Callout type="warn" title="Note on the WCAG contrast algorithm">

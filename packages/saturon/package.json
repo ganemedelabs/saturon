@@ -1,6 +1,6 @@
 {
     "name": "saturon",
-    "version": "0.4.5",
+    "version": "0.4.6",
     "description": "A runtime-extensible JavaScript library for parsing, converting, and manipulating colors with full CSS spec support.",
     "type": "module",
     "private": false,
@@ -21,7 +21,7 @@
     },
     "homepage": "https://github.com/ganemedelabs/saturon#readme",
     "scripts": {
-        "build": "tsc && esbuild dist/index.js --bundle --format=iife --global-name=Saturon --outfile=dist/index.umd.js && esbuild dist/index.js --bundle --minify --format=iife --global-name=Saturon --outfile=dist/index.umd.min.js",
+        "build": "tsc -p tsconfig.build.json && esbuild dist/index.js --bundle --format=iife --global-name=Saturon --outfile=dist/index.umd.js && esbuild dist/index.js --bundle --minify --format=iife --global-name=Saturon --outfile=dist/index.umd.min.js",
         "test": "jest",
         "lint": "eslint .",
         "lint:fix": "eslint . --fix"
