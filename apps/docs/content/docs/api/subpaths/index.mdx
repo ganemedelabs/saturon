@@ -5,6 +5,7 @@ description: Standalone, tree-shakable utility modules for direct functional wor
 
 import {
     FileCode,
+    Computer,
     RefreshCw,
     FileType,
     Maximize2,
@@ -34,6 +35,14 @@ Every method available on the `Color` class is powered by these underlying stand
         icon={<Blend className="text-indigo-500 dark:text-indigo-400" />}
     >
         Statically mix multiple colors by percentages, replicating the exact W3C behavior of the CSS color-mix() function.
+    </Card>
+
+    <Card
+        title="saturon/computed"
+        href="/docs/api/subpaths/computed"
+        icon={<Computer className="text-yellow-500 dark:text-yellow-400 " />}
+    >
+        Resolve CSS color expressions to their computed color values.
     </Card>
 
     <Card

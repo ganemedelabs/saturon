@@ -1,13 +1,13 @@
 import { config } from "./config.js";
 import { convert } from "./convert.js";
 import { ColorModel, colorModels } from "./converters.js";
-import { formatters, FormattingOptions, OutputType } from "./formatters.js";
+import { ComponentOptions, formatters, FormattingOptions, OutputType } from "./formatters.js";
 import { ColorData } from "./syntax.js";
 import { toArray } from "./toArray.js";
 
-function toNormArray(color: ColorData, model: ColorModel): number[] {
-    const coords = convert(color, model);
-    return toArray({ model, coords }, { fit: "none", precision: null });
+function toNormArray(color: ColorData, target: ColorModel, options: ComponentOptions): number[] {
+    const coords = target === color.model ? color.coords : convert(color, target);
+    return toArray({ model: target, coords }, options);
 }
 
 /**
@@ -22,7 +22,7 @@ export function format(
     to: OutputType | (string & {}),
     options: FormattingOptions = {}
 ): string | undefined {
-    const { legacy = false, fit = config.defaults.fit, precision, units = false } = options;
+    const { legacy = false, fit = config.defaults.fit, precision, units = false, normalized = true } = options;
 
     const conv = formatters[to as OutputType];
     if (!conv) throw new Error(`Unsupported color type: '${to}'.`);
@@ -31,12 +31,10 @@ export function format(
     if (!fromBridge || !formatter) throw new Error(`Invalid output type: '${to}'.`);
 
     const fmt = (coords: number[]) => {
-        const arr = [...coords];
-        return formatter(arr, { legacy, fit, precision, units });
+        return formatter(coords, { legacy, units });
     };
 
-    if (to === color.model) return fmt(color.coords);
-    if (to in colorModels) return fmt(toNormArray(color, to as ColorModel));
+    if (to in colorModels) return fmt(toNormArray(color, to as ColorModel, { fit, precision, normalized }));
 
-    return fmt(fromBridge(toNormArray(color, bridge as ColorModel)));
+    return fmt(fromBridge(toNormArray(color, bridge as ColorModel, { fit, precision, normalized })));
 }

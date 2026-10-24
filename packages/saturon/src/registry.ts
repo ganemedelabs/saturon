@@ -18,6 +18,7 @@ import { NamedColor, namedColors } from "./namedColors.js";
 import { Shortcut, shortcuts } from "./shortcuts.js";
 import { generateColorFunctionGrammar, generateColorSpaceGrammar } from "./grammar.js";
 import { validators } from "./validators.js";
+import { ComputedRule, computedRules } from "./computed.js";
 
 /** Supported registration categories for the public registry API. */
 export type RegistererType = keyof typeof registerers;
@@ -217,6 +218,7 @@ export const registerers = {
         const modelConv = spaceConverterToModelConverter(n, converter);
         spaces[n] = modelConv;
         models[n] = modelConv;
+        formatters[n as "xyz"] = createColorFormatter(n, modelConv);
 
         try {
             const { rules } = generateColorSpaceGrammar(n, modelConv);
@@ -422,6 +424,31 @@ export const registerers = {
         if (typeof method !== "function") throw new TypeError("Fit method must be a function.");
         methods[n] = method;
     },
+
+    "computed-rules": (name: string, rule: Omit<ComputedRule, "name">): void => {
+        const n = name.trim().toLowerCase();
+
+        if (typeof rule !== "object" || rule === null) {
+            throw new TypeError("Computed rule must be a non-null object.");
+        }
+        if (typeof rule.test !== "function") {
+            throw new TypeError("ComputedRule.test must be a function.");
+        }
+        if (typeof rule.compute !== "function") {
+            throw new TypeError("ComputedRule.compute must be a function.");
+        }
+        if (rule.priority !== undefined && (typeof rule.priority !== "number" || isNaN(rule.priority))) {
+            throw new TypeError("ComputedRule.priority must be a number if provided.");
+        }
+        if (computedRules.some((r) => r.name === n)) {
+            throw new Error(`Computed rule '${n}' is already registered.`);
+        }
+
+        const p = rule.priority ?? 0;
+        let i = computedRules.findIndex((r) => (r.priority ?? 0) < p);
+        if (i === -1) i = computedRules.length;
+        computedRules.splice(i, 0, { ...rule, name: n });
+    },
 } as const;
 
 /** Unregistry handlers mirroring the registerer handlers for full type safety. */
@@ -438,6 +465,7 @@ export const unregisterers = {
     "color-spaces": (name: ColorSpace): void => {
         delete colorSpaces[name as ColorSpace];
         delete colorModels[name as ColorSpace];
+        delete formatters[name as OutputType];
         registry.customSpaces.delete(name);
         grammarMap["<custom-color-space>"] = parseExpression(Array.from(registry.customSpaces).join(" | "));
     },
@@ -457,6 +485,12 @@ export const unregisterers = {
 
     "fit-methods": (name: FitMethod): void => {
         delete fitMethods[name as Exclude<FitMethod, "none">];
+    },
+
+    "computed-rules": (name: string): void => {
+        const n = name.trim().toLowerCase();
+        const i = computedRules.findIndex((r) => r.name === n);
+        if (i !== -1) computedRules.splice(i, 1);
     },
 } as const;
 

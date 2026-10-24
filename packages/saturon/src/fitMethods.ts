@@ -36,18 +36,21 @@ export type FitMethod = keyof typeof fitMethods | "none";
 export const fitMethods = {
     clip: (data) => {
         const { model, coords } = data;
-        const { values: defs } = getLayout(model);
+        const { values: defs, hueIndex, alphaIndex } = getLayout(model);
         const clipped = new Array(coords.length);
         for (let i = 0; i < coords.length; i++) {
             const v = coords[i];
+
+            if (i === hueIndex || i === alphaIndex) {
+                clipped[i] = v;
+                continue;
+            }
+
             const prop = defs[i];
             if (!prop) throw new Error(`Missing component properties for index ${i}.`);
 
-            if (prop.value === "hue") clipped[i] = ((v % 360) + 360) % 360;
-            else {
-                const [min, max] = Array.isArray(prop.value) ? prop.value : [0, 100];
-                clipped[i] = v < min ? min : v > max ? max : v;
-            }
+            const [min, max] = Array.isArray(prop.value) ? prop.value : [0, 100];
+            clipped[i] = v < min ? min : v > max ? max : v;
         }
         return clipped;
     },
@@ -159,10 +162,10 @@ export function fit(color: ColorData, options: Omit<ComponentOptions, "fit"> & {
     const { model, coords } = color;
     const { method = config.defaults.fit, precision } = options;
 
-    const { values: defs } = getLayout(model);
-    let clipped: number[];
+    const { values: defs, hueIndex, alphaIndex } = getLayout(model);
+    let fitted: number[];
 
-    if (method === "none") clipped = coords;
+    if (method === "none") fitted = coords;
     else {
         const fn = fitMethods[method];
 
@@ -170,13 +173,21 @@ export function fit(color: ColorData, options: Omit<ComponentOptions, "fit"> & {
             throw new Error(`Invalid fit method: must be ${get("fit-methods").join(", ")}.`);
         }
 
-        clipped = fn({ coords, model });
+        fitted = fn({ coords, model });
     }
 
-    const final = new Array(clipped.length);
+    const final = new Array<number>(coords.length);
 
-    for (let i = 0; i < clipped.length; i++) {
-        final[i] = applyPrecision(clipped[i], precision, defs[i]?.precision ?? 3);
+    for (let i = 0; i < coords.length; i++) {
+        const p = defs[i]?.precision ?? 3;
+
+        if (i === alphaIndex) {
+            final[i] = coords[i];
+        } else if (i === hueIndex) {
+            final[i] = applyPrecision(((coords[i] % 360) + 360) % 360, precision, p);
+        } else {
+            final[i] = applyPrecision(fitted[i], precision, p);
+        }
     }
 
     return final;

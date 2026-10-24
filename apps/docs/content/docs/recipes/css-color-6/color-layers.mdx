@@ -1,0 +1,158 @@
+---
+title: Color Layers
+description: A recipe to register the `color-layers()` function in Saturon.
+---
+
+## Implementation
+
+```ts title="src/index.ts"
+const blendModes = [
+    "normal",
+    "darken",
+    "multiply",
+    "color-burn",
+    "lighten",
+    "screen",
+    "color-dodge",
+    "overlay",
+    "soft-light",
+    "hard-light",
+    "difference",
+    "exclusion",
+    "hue",
+    "saturation",
+    "color",
+    "luminosity",
+] as const;
+
+type BlendMode = (typeof blendModes)[number];
+type NonSeparableMode = "hue" | "saturation" | "color" | "luminosity";
+type SeparableMode = Exclude<BlendMode, NonSeparableMode>;
+
+const isBlendMode = (mode: string): mode is BlendMode => (blendModes as readonly string[]).includes(mode);
+
+const separable: Record<SeparableMode, (b: number, s: number) => number> = {
+    normal: (b, s) => s,
+    darken: Math.min,
+    multiply: (b, s) => b * s,
+    "color-burn": (b, s) => (b >= 1 ? 1 : s <= 0 ? 0 : 1 - Math.min(1, (1 - b) / s)),
+    lighten: Math.max,
+    screen: (b, s) => b + s - b * s,
+    "color-dodge": (b, s) => (b === 0 ? 0 : s >= 1 ? 1 : Math.min(1, b / (1 - s))),
+    overlay: (b, s) => separable["hard-light"](s, b),
+    "soft-light": (b, s) => {
+        if (s <= 0.5) return b - (1 - 2 * s) * b * (1 - b);
+        const d = b <= 0.25 ? ((16 * b - 12) * b + 4) * b : Math.sqrt(b);
+        return b + (2 * s - 1) * (d - b);
+    },
+    "hard-light": (b, s) => (s <= 0.5 ? b * 2 * s : separable.screen(b, 2 * s - 1)),
+    difference: (b, s) => Math.abs(b - s),
+    exclusion: (b, s) => b + s - 2 * b * s,
+};
+
+const lum = ([r, g, b]: number[]) => 0.3 * r + 0.59 * g + 0.11 * b;
+
+const sat = (c: number[]) => Math.max(...c) - Math.min(...c);
+
+function clipColor(c: number[]): number[] {
+    const l = lum(c);
+    const n = Math.min(...c);
+    const x = Math.max(...c);
+    if (n < 0) c = c.map((v) => l + ((v - l) * l) / (l - n)) as number[];
+    if (x > 1) c = c.map((v) => l + ((v - l) * (1 - l)) / (x - l)) as number[];
+    return c;
+}
+
+function setLum(c: number[], l: number): number[] {
+    const d = l - lum(c);
+    return clipColor(c.map((v) => v + d) as number[]);
+}
+
+function setSat(c: number[], s: number): number[] {
+    const [iMin, iMid, iMax] = [0, 1, 2].sort((i, j) => c[i] - c[j]);
+    const out: number[] = [0, 0, 0];
+    if (c[iMax] > c[iMin]) {
+        out[iMid] = ((c[iMid] - c[iMin]) * s) / (c[iMax] - c[iMin]);
+        out[iMax] = s;
+    }
+    return out;
+}
+
+const nonSeparable: Record<NonSeparableMode, (cb: number[], cs: number[]) => number[]> = {
+    hue: (cb, cs) => setLum(setSat(cs, sat(cb)), lum(cb)),
+    saturation: (cb, cs) => setLum(setSat(cb, sat(cs)), lum(cb)),
+    color: (cb, cs) => setLum(cs, lum(cb)),
+    luminosity: (cb, cs) => setLum(cb, lum(cs)),
+};
+
+const isNonSeparable = (mode: BlendMode): mode is NonSeparableMode => mode in nonSeparable;
+
+function blendChannels(cb: number[], cs: number[], mode: BlendMode): number[] {
+    if (isNonSeparable(mode)) {
+        return nonSeparable[mode]([cb[0], cb[1], cb[2]], [cs[0], cs[1], cs[2]]);
+    }
+    const fn = separable[mode];
+    return cs.map((s, i) => fn(cb[i], s));
+}
+
+function composite(top: number[], bottom: number[], mode: BlendMode, alphaIndex: number): number[] {
+    const as = top[alphaIndex];
+    const ab = bottom[alphaIndex];
+    const ao = as + ab * (1 - as);
+    if (ao === 0) return top.map(() => 0);
+
+    const blended = blendChannels(bottom, top, mode);
+
+    return top.map((s, i) => {
+        if (i === alphaIndex) return ao;
+        const cb = bottom[i];
+        const cr = (1 - ab) * s + ab * blended[i];
+        return (as * cr + (1 - as) * ab * cb) / ao;
+    });
+}
+
+/**
+ * @see {@link https://drafts.csswg.org/css-color-6/|CSS Color Module Level 6}
+ */
+Color.register("parsers", [
+    {
+        name: "<blend-mode>",
+        value: {
+            rule: blendModes.join(" | "),
+        },
+    },
+    {
+        name: "<color-layers()>",
+        value: {
+            appendTo: "<color>",
+            rule: "color-layers([ <blend-mode>, ]? <color># )",
+            parse: (node) => {
+                const children = node.value as ParseNode[];
+                const rawMode = (children.find((n) => n.type === "<blend-mode>")?.value as string) ?? "normal";
+                const mode: BlendMode = isBlendMode(rawMode) ? rawMode : "normal";
+                const { alphaIndex } = getLayout("srgb");
+
+                const layers: number[][] = children
+                    .filter((n) => n.type === "<color>")
+                    .map((n) => convert(parseNode(n), "srgb"));
+
+                const coords = layers
+                    .slice(0, -1)
+                    .reduceRight<number[]>((bottom, top) => composite(top, bottom, mode, alphaIndex), layers.at(-1)!);
+
+                return { model: "srgb", coords };
+            },
+        },
+    },
+]);
+```
+
+## Usage
+
+```ts title="src/index.ts"
+import { Color } from "saturon";
+
+const layers = "color-layers(difference, red, blue)";
+console.log(Color.isValid(layers)); // true
+console.log(Color.from(layers).model); // "srgb"
+```

@@ -41,15 +41,16 @@ Under the hood, the architecture avoids monolithic initialization and cleanup lo
 
 The architecture supports seven distinct registration categories:
 
-| Category       | Purpose                                                      | Mutated Engine State                                  |
-| -------------- | ------------------------------------------------------------ | ----------------------------------------------------- |
-| `color-models` | Injects custom mathematical color functions/models.          | `colorModels`, `formatters`, `parsers`, `grammarMap`  |
-| `color-spaces` | Registers matrix-based color spaces using bridge transforms. | `colorSpaces`, `colorModels`, `parsers`, `grammarMap` |
-| `parsers`      | Injects custom CSS string evaluation logic or grammar nodes. | `parsers`, `grammarMap`, `validators`                 |
-| `formatters`   | Appends custom string serialization outputs.                 | `formatters`                                          |
-| `shortcuts`    | Defines quick-matching parser overrides.                     | `shortcuts`, `grammarMap`                             |
-| `fit-methods`  | Injects custom gamut mapping algorithms.                     | `fitMethods`                                          |
-| `named-colors` | Adds hardcoded RGB color lookup tokens.                      | `namedColors`                                         |
+| Category         | Purpose                                                      | Mutated Engine State                                  |
+| ---------------- | ------------------------------------------------------------ | ----------------------------------------------------- |
+| `color-models`   | Injects custom mathematical color functions/models.          | `colorModels`, `formatters`, `parsers`, `grammarMap`  |
+| `color-spaces`   | Registers matrix-based color spaces using bridge transforms. | `colorSpaces`, `colorModels`, `parsers`, `grammarMap` |
+| `parsers`        | Injects custom CSS string evaluation logic or grammar nodes. | `parsers`, `grammarMap`, `validators`                 |
+| `formatters`     | Appends custom string serialization outputs.                 | `formatters`                                          |
+| `shortcuts`      | Defines quick-matching parser overrides.                     | `shortcuts`, `grammarMap`                             |
+| `fit-methods`    | Injects custom gamut mapping algorithms.                     | `fitMethods`                                          |
+| `named-colors`   | Adds hardcoded RGB color lookup tokens.                      | `namedColors`                                         |
+| `computed-rules` | Adds custom computed-value rules for serialization.          | `computedRules`                                       |
 
 When `unregister()` is invoked, the respective `unregisterers` handler deletes the target key directly from the internal state lookup table (e.g., removing a color model from `colorModels` or a formatter from `formatters`), restoring the engine to its pre-plugin state.
 

@@ -4,9 +4,9 @@ icon: Gauge
 description: How Saturon's parsing, conversion, and serialization speed compares to chroma-js, colorjs.io, and culori, and how to reproduce the numbers
 ---
 
-Saturon parses colors with a full CSS grammar, which is usually the slow, careful way to build a color library. This page measures what that costs in practice, compares it to other popular color libraries, and explains how to reproduce every number.
+import { BenchmarkChart } from "@/components/benchmark-chart";
 
-On this workload, culori is the fastest library at parsing function-style strings and hex colors, at conversion, and at stringifying. Saturon is the fastest at parsing named colors. Saturon is faster than colorjs.io on every task, and faster than chroma-js at all three kinds of parsing and at stringifying. It is slower than culori everywhere except named colors, and slower than chroma-js at conversion.
+Saturon parses colors with a full CSS grammar, which is usually the slow, careful way to build a color library. This page measures what that costs in practice, compares it to other popular color libraries, and explains how to reproduce every number.
 
 <Callout type="warn" title="Read this before quoting the numbers">
     Microbenchmarks measure small, isolated operations. They are useful for comparing libraries on the same task, but
@@ -20,55 +20,60 @@ _Last run: October 17, 2026 on an Intel Core i5-13450HX (13th Gen, ~4.39 GHz), W
 
 Each timed run processes 10,000 inputs, so the main column is the time for 10,000 operations. The per-operation column is that time divided by 10,000. The last column compares each library's average with Saturon's class API: lower times are faster. Ratios are computed from the printed averages, so they can differ in the last digit from the summary mitata prints.
 
-### Parsing: function-style strings → numbers
-
-| Library         | Version | Avg per 10,000 ops (ms) | Min - max (ms)  | Per operation (µs) | vs Saturon (class) |
-| --------------- | ------- | ----------------------- | --------------- | ------------------ | ------------------ |
-| Saturon (class) | `0.4.4` | 80.61                   | 75.02 - 94.53   | 8.06               | baseline           |
-| Saturon (utils) | `0.4.4` | 78.46                   | 72.99 - 90.64   | 7.85               | 1.03x faster       |
-| chroma-js       | `3.2.0` | 84.12                   | 81.33 - 90.57   | 8.41               | 1.04x slower       |
-| colorjs.io      | `0.7.1` | 115.87                  | 109.41 - 129.07 | 11.59              | 1.44x slower       |
-| culori          | `4.0.2` | 10.13                   | 9.75 - 10.98    | 1.01               | 7.96x faster       |
-
-### Parsing: hex strings → numbers
-
-| Library         | Version | Avg per 10,000 ops (ms) | Min - max (ms) | Per operation (µs) | vs Saturon (class) |
-| --------------- | ------- | ----------------------- | -------------- | ------------------ | ------------------ |
-| Saturon (class) | `0.4.4` | 2.71                    | 2.60 - 3.10    | 0.27               | baseline           |
-| Saturon (utils) | `0.4.4` | 2.29                    | 2.22 - 2.70    | 0.23               | 1.18x faster       |
-| chroma-js       | `3.2.0` | 6.52                    | 6.23 - 7.69    | 0.65               | 2.41x slower       |
-| colorjs.io      | `0.7.1` | 89.92                   | 85.89 - 93.73  | 8.99               | 33.18x slower      |
-| culori          | `4.0.2` | 1.96                    | 1.88 - 2.53    | 0.20               | 1.38x faster       |
-
-### Parsing: named colors → numbers
-
-| Library         | Version | Avg per 10,000 ops (ms) | Min - max (ms) | Per operation (µs) | vs Saturon (class) |
-| --------------- | ------- | ----------------------- | -------------- | ------------------ | ------------------ |
-| Saturon (class) | `0.4.4` | 0.97                    | 0.89 - 1.43    | 0.097              | baseline           |
-| Saturon (utils) | `0.4.4` | 0.81                    | 0.73 - 1.30    | 0.081              | 1.20x faster       |
-| chroma-js       | `3.2.0` | 3.49                    | 3.28 - 4.68    | 0.349              | 3.61x slower       |
-| colorjs.io      | `0.7.1` | 83.25                   | 79.71 - 87.61  | 8.325              | 86.05x slower      |
-| culori          | `4.0.2` | 3.72                    | 3.55 - 4.34    | 0.372              | 3.85x slower       |
-
-### Conversion: between color models
-
-| Library         | Version | Avg per 10,000 ops (ms) | Min - max (ms) | Per operation (µs) | vs Saturon (class) |
-| --------------- | ------- | ----------------------- | -------------- | ------------------ | ------------------ |
-| Saturon (class) | `0.4.4` | 8.32                    | 7.74 - 9.79    | 0.83               | baseline           |
-| Saturon (utils) | `0.4.4` | 7.77                    | 7.40 - 8.75    | 0.78               | 1.07x faster       |
-| chroma-js       | `3.2.0` | 4.54                    | 4.24 - 6.00    | 0.45               | 1.83x faster       |
-| colorjs.io      | `0.7.1` | 40.07                   | 37.68 - 45.60  | 4.01               | 4.82x slower       |
-| culori          | `4.0.2` | 4.13                    | 3.97 - 4.88    | 0.41               | 2.01x faster       |
-
-### Stringify: numbers → CSS string
-
-| Library         | Version | Avg per 10,000 ops (ms) | Min - max (ms) | Per operation (µs) | vs Saturon (class) |
-| --------------- | ------- | ----------------------- | -------------- | ------------------ | ------------------ |
-| Saturon (class) | `0.4.4` | 6.75                    | 6.40 - 8.66    | 0.68               | baseline           |
-| Saturon (utils) | `0.4.4` | 6.55                    | 6.18 - 7.79    | 0.66               | 1.03x faster       |
-| chroma-js       | `3.2.0` | 9.24                    | 8.70 - 10.58   | 0.92               | 1.37x slower       |
-| colorjs.io      | `0.7.1` | 32.37                   | 31.35 - 33.57  | 3.24               | 4.80x slower       |
-| culori          | `4.0.2` | 4.44                    | 4.24 - 5.11    | 0.44               | 1.52x faster       |
+<BenchmarkChart
+    tasks={[
+        {
+            title: "Parsing: function-style strings",
+            results: [
+                { library: "Saturon (class)", avg: 80.61, perOp: 8.06, vs: "baseline" },
+                { library: "Saturon (utils)", avg: 78.46, perOp: 7.85, vs: "1.03x faster" },
+                { library: "chroma-js", avg: 84.12, perOp: 8.41, vs: "1.04x slower" },
+                { library: "colorjs.io", avg: 115.87, perOp: 11.59, vs: "1.44x slower" },
+                { library: "culori", avg: 10.13, perOp: 1.01, vs: "7.96x faster" },
+            ],
+        },
+        {
+            title: "Parsing: hex strings",
+            results: [
+                { library: "Saturon (class)", avg: 2.71, perOp: 0.27, vs: "baseline" },
+                { library: "Saturon (utils)", avg: 2.29, perOp: 0.23, vs: "1.18x faster" },
+                { library: "chroma-js", avg: 6.52, perOp: 0.65, vs: "2.41x slower" },
+                { library: "colorjs.io", avg: 89.92, perOp: 8.99, vs: "33.18x slower" },
+                { library: "culori", avg: 1.96, perOp: 0.2, vs: "1.38x faster" },
+            ],
+        },
+        {
+            title: "Parsing: named colors",
+            results: [
+                { library: "Saturon (class)", avg: 0.97, perOp: 0.097, vs: "baseline" },
+                { library: "Saturon (utils)", avg: 0.81, perOp: 0.081, vs: "1.20x faster" },
+                { library: "chroma-js", avg: 3.49, perOp: 0.349, vs: "3.61x slower" },
+                { library: "colorjs.io", avg: 83.25, perOp: 8.325, vs: "86.05x slower" },
+                { library: "culori", avg: 3.72, perOp: 0.372, vs: "3.85x slower" },
+            ],
+        },
+        {
+            title: "Conversion: between color models",
+            results: [
+                { library: "Saturon (class)", avg: 8.32, perOp: 0.83, vs: "baseline" },
+                { library: "Saturon (utils)", avg: 7.77, perOp: 0.78, vs: "1.07x faster" },
+                { library: "chroma-js", avg: 4.54, perOp: 0.45, vs: "1.83x faster" },
+                { library: "colorjs.io", avg: 40.07, perOp: 4.01, vs: "4.82x slower" },
+                { library: "culori", avg: 4.13, perOp: 0.41, vs: "2.01x faster" },
+            ],
+        },
+        {
+            title: "Stringify: numbers → CSS string",
+            results: [
+                { library: "Saturon (class)", avg: 6.75, perOp: 0.68, vs: "baseline" },
+                { library: "Saturon (utils)", avg: 6.55, perOp: 0.66, vs: "1.03x faster" },
+                { library: "chroma-js", avg: 9.24, perOp: 0.92, vs: "1.37x slower" },
+                { library: "colorjs.io", avg: 32.37, perOp: 3.24, vs: "4.80x slower" },
+                { library: "culori", avg: 4.44, perOp: 0.44, vs: "1.52x faster" },
+            ],
+        },
+    ]}
+/>
 
 ## What is measured
 
@@ -104,22 +109,6 @@ The conversion and stringify tasks include building the color object from its co
 | chroma-js       | `chroma(str).rgba()`     | `chroma(coords, model)[target]()`          | `chroma(coords, model).css(model)`    |
 | colorjs.io      | `new Color(str).coords`  | `new Color(space, coords).to(targetSpace)` | `new Color(space, coords).toString()` |
 | culori          | `parse(str)`             | `converter(target)(colorObject)`           | `formatCss(colorObject)`              |
-
-- The parse column is used for all three parsing tasks. Only the input strings change.
-- "Saturon (class)" uses the [`Color`](/docs/api/color-class) class. "Saturon (utils)" uses the tree-shakable functions [`parse`](/docs/api/subpaths/parse), [`convert`](/docs/api/subpaths/convert), and [`format`](/docs/api/subpaths/format).
-- For colorjs.io, `rgb` maps to its `srgb` space; `hsl`, `lab`, and `lch` map to the space of the same name.
-- For culori, the four converters are created once before timing. The color object (`mode` plus the three channels) is built inside the timed loop, like the other libraries' constructors.
-- Each library serializes with its own serializer, so the output strings differ in syntax and precision between libraries.
-
-## Methodology
-
-- All libraries receive identical input strings or identical `model` and `coords` values. Dataset generation, the JSON round trip of the dataset, and culori's converter creation happen before any timing.
-- Parsing returns each library's native numbers: coordinates in the parsed color's own model for Saturon and colorjs.io, sRGB values for chroma-js, and a color object for culori. The conversion and stringify tasks produce each library's own result type.
-- Each timed function keeps the last result of its loop and passes it to mitata's `do_not_optimize`, so the engine can't discard the work as dead code.
-- Mitata warms up each benchmark before it measures. Saturon keeps a global cache of its conversion graph, conversion paths, component ranges, and model layouts, and that cache is warm during the timed runs. It doesn't cache parse results between calls, so repeating the same input strings doesn't speed up Saturon's parsing. The other libraries were not audited for internal caching.
-- The script runs as `node bench.mjs`, with no extra flags.
-- The versions in the tables are the ones locked in `pnpm-lock.yaml`. mitata is `1.0.34`.
-- Numbers come from one run on the hardware listed above. The min-max columns show the spread across mitata's samples within that run. Absolute times will differ on your machine; compare the relative numbers.
 
 ## Limitations
 

@@ -1,13 +1,13 @@
 ---
 title: saturon/toArray
-description: Export raw numeric arrays of component values, handling special values like NaN and Infinity with gamut fitting and precision options.
+description: Export color component arrays with optional non-finite value normalization, gamut fitting, and precision options.
 ---
 
-The `saturon/toArray` subpath exports the `toArray()` function and the `normalizeComponentValue()` helper. It converts raw `ColorData` objects into normalized, gamut-fitted numeric arrays suitable for calculations or lower-level processing.
+The `saturon/toArray` subpath exports the `toArray()` function and the `normalizeComponentValue()` helper. It returns a color's component coordinates as a numeric array, with optional replacement of non-finite values, gamut fitting, and precision adjustments.
 
 ## `toArray()` [#to-array]
 
-Extracts numeric component coordinates from a `ColorData` object, normalizes special floating-point edge cases (`NaN`, `Infinity`, `-Infinity`), applies gamut fitting, and enforces decimal precision.
+Extracts component coordinates from a `ColorData` object. By default, it replaces non-finite channel values with component-appropriate values, applies gamut fitting and precision, and clamps alpha to `[0, 1]`.
 
 ```ts
 import { toArray } from "saturon/toArray";
@@ -33,14 +33,15 @@ function toArray(color: ColorData, options?: ComponentOptions): number[];
 
 ### Options (`ComponentOptions`)
 
-| Option      | Type        | Default               | Description                                                                                                   |
-| ----------- | ----------- | --------------------- | ------------------------------------------------------------------------------------------------------------- |
-| `fit`       | `FitMethod` | `config.defaults.fit` | The gamut mapping method to apply to out-of-bounds coordinates (e.g., `"clip"`, `"css-gamut-map"`).           |
-| `precision` | `number`    | `undefined`           | The decimal place limit for rounding output coordinates. Values `> 100` fall back to unconstrained precision. |
+| Option       | Type             | Default               | Description                                                                                                           |
+| ------------ | ---------------- | --------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `fit`        | `FitMethod`      | `config.defaults.fit` | The gamut mapping method to apply to out-of-bounds coordinates (e.g., `"clip"`, `"css-gamut-map"`).                   |
+| `precision`  | `number \| null` | `undefined`           | Overrides component precision. `null` disables rounding; values greater than `100` also disable rounding.            |
+| `normalized` | `boolean`        | `true`                | When `true`, replaces `NaN` and infinities with component-appropriate values. When `false`, bypasses that replacement; alpha is still clamped to `[0, 1]`. |
 
 ### Returns
 
-An array of numbers representing the normalized, fitted color coordinates followed by the alpha channel (e.g., `[r, g, b, alpha]`).
+An array of numbers containing fitted color coordinates in the model's native units, with alpha included when the model defines it (e.g., `[r, g, b, alpha]`). If alpha is absent from the input, it defaults to `1`; the resulting alpha is clamped to `[0, 1]`.
 
 ---
 
@@ -56,29 +57,36 @@ const maxHue = normalizeComponentValue(Infinity, "hue"); // 360
 
 // Resolves NaN to 0
 const fallback = normalizeComponentValue(NaN, "percentage"); // 0
+
+// Opt out of non-finite value normalization
+const unchanged = normalizeComponentValue(Infinity, "hue", false); // Infinity
 ```
 
 ### Signature
 
 ```ts
-function normalizeComponentValue(component: number, value: ComponentDefinition["value"]): number;
+function normalizeComponentValue(
+    component: number,
+    value: ComponentDefinition["value"],
+    normalized?: boolean
+): number;
 ```
 
 ### Normalization Rules
 
-- Finite numbers: Returned unchanged.
-- `NaN` / non-numbers: Normalized to `0`.
-- `Infinity`: Resolved to the component's maximum boundary (`360` for `"hue"`, `100` for `"percentage"`, or upper bound for explicit tuple ranges `[min, max]`).
-- `-Infinity`: Resolved to the component's minimum boundary (`0` or lower bound for explicit tuple ranges).
+- When `normalized` is `false`, returns the value unchanged, including `NaN` and infinities.
+- Otherwise, finite numbers are returned unchanged and `NaN` (or a non-number at runtime) becomes `0`.
+- `Infinity` becomes the component's maximum: `360` for `"hue"`, `100` for `"percentage"`, `1` for `"alpha-value"`, or the upper bound for an explicit range `[min, max]`.
+- `-Infinity` becomes the component's minimum: `0` for string-defined component types or the lower bound for an explicit range.
 
 ---
 
 ## Behavior
 
-1. Validates that the specified color `model` has registered component definitions; throws an error if missing.
-2. Sanitizes the primary color channels (up to 3 dimensions) using `normalizeComponentValue()`.
-3. Applies the selected `fit` method (or engine default) and rounds coordinates according to `precision`.
-4. Normalizes the alpha channel (defaults to `1` if absent) and rounds it according to either the custom `precision` option or the component definition's default precision (defaults to `3` decimals).
+1. Retrieves the component layout for the specified color model; throws if the model has no defined layout.
+2. Normalizes each non-alpha coordinate when `normalized` is `true` (the default). This handles non-finite values; it does not convert coordinates from native units to a `0`–`1` scale.
+3. Applies the selected `fit` method (or the engine default) to the color coordinates and rounds them according to `precision` or each component's default precision.
+4. Defaults missing alpha to `1`, normalizes it when requested, rounds it according to `precision` or the alpha component's default precision, then clamps it to `[0, 1]`.
 
 ---
 
@@ -98,4 +106,4 @@ console.log(normalized); // [180, 100, 50, 1]
 
 ## Errors
 
-- Throws an `Error` if the specified color model is not registered in `colorModels`.
+- Throws an error if the specified color model has no component layout, or if the selected fit method is invalid.

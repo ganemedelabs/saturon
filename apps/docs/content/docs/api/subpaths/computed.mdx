@@ -1,0 +1,93 @@
+---
+title: saturon/computed
+description: Resolve CSS color expressions to their computed color values.
+---
+
+The `saturon/computed` subpath exposes `computed()`, which parses a color string and returns its computed color as a string. It is useful when you need to resolve expressions such as `color-mix()` or relative color syntax to concrete channel values.
+
+## `computed()` [#computed]
+
+Parses the input, selects the first matching computed-value rule, and formats the parsed color in the representation appropriate to that rule.
+
+```ts
+import { computed } from "saturon/computed";
+
+const value = computed("red");
+console.log(value); // "rgb(255, 0, 0)"
+
+const mixed = computed("color-mix(in srgb, red, blue)");
+console.log(mixed); // A resolved RGB color string
+```
+
+## Signature
+
+```ts
+function computed(color: string): string;
+```
+
+### Parameters
+
+| Parameter | Type     | Description                              |
+| --------- | -------- | ---------------------------------------- |
+| `color`   | `string` | A CSS color string to parse and compute. |
+
+### Returns
+
+A string containing the computed color value. The output format depends on the input syntax and the first rule that matches it.
+
+## Behavior
+
+1. Parses the input into a color model and coordinate array.
+2. Builds a `ComputedContext` containing the original `input`, parsed `model`, and `coords`.
+3. Checks the rules in priority order and runs the first rule whose `test` returns `true`.
+4. Returns the string produced by that rule's `compute` function.
+
+The built-in rules handle alpha-adjusted colors, `color-mix()`, relative color syntax, models that bridge through RGB, and a default case. Their priorities are, respectively, `100`, `90`, `80`, `70`, and `-Infinity`. Built-in formatters choose the output model and syntax; for example, a plain named color such as `"red"` resolves to legacy RGB syntax.
+
+## Computed rules
+
+The module also exports `computedRules`, the live list of rules, and the `ComputedContext` and `ComputedRule` types.
+
+```ts
+type ComputedContext = {
+    input: string;
+    model: ColorModel;
+    coords: number[];
+};
+
+type ComputedRule = {
+    name: string;
+    priority?: number;
+    test: (ctx: ComputedContext) => boolean;
+    compute: (ctx: ComputedContext) => string;
+};
+```
+
+Higher-priority rules run first. A rule's `compute` function is called only if its `test` returns `true`. Built-in priorities range from `70` to `100`; custom rules default to priority `0`, which puts them before the default fallback.
+
+To add or remove rules at runtime, use the `"computed-rules"` category of the [`saturon/registry` API](/docs/api/subpaths/registry):
+
+```ts
+import { register, unregister } from "saturon/registry";
+
+register("computed-rules", [
+    {
+        name: "custom-hsl-output",
+        value: {
+            priority: 110,
+            test: ({ model }) => model === "hsl",
+            compute: ({ coords }) => `hsl(${coords.join(" ")})`,
+        },
+    },
+]);
+
+// Later, remove the custom rule.
+unregister("computed-rules", ["custom-hsl-output"]);
+```
+
+The registration name becomes the rule's `name`. Give a custom rule a priority above the matching built-in rules if it needs to take precedence over them.
+
+## Errors
+
+- Throws an error if the input cannot be parsed as a color.
+- Throws an error if no computed rule matches the input. The built-in default rule matches every parsed color unless it has been removed or the rules list has otherwise been changed.

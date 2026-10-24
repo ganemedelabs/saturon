@@ -6,8 +6,12 @@ import { getLayout } from "./layout.js";
 import { ColorData } from "./syntax.js";
 
 /** Normalizes a component value to the expected range for its component definition. */
-export function normalizeComponentValue(component: number, value: ComponentDefinition["value"]): number {
-    if (Number.isFinite(component)) return component;
+export function normalizeComponentValue(
+    component: number,
+    value: ComponentDefinition["value"],
+    normalized: boolean = true
+): number {
+    if (normalized === false || Number.isFinite(component)) return component;
     if (typeof component !== "number" || Number.isNaN(component)) return 0;
 
     if (component === Infinity) {
@@ -28,7 +32,7 @@ export function normalizeComponentValue(component: number, value: ComponentDefin
  * @throws If the color model does not have defined components.
  */
 export function toArray(color: ColorData, options: ComponentOptions = {}): number[] {
-    const { fit: method = config.defaults.fit, precision } = options;
+    const { fit: method = config.defaults.fit, precision, normalized = true } = options;
 
     const { model, coords } = color;
     const { alphaIndex, values, length } = getLayout(model);
@@ -36,18 +40,18 @@ export function toArray(color: ColorData, options: ComponentOptions = {}): numbe
     const colorDefs = values.filter((_, i) => i !== alphaIndex);
 
     const fitted = fit(
-        { model, coords: colorDefs.map((d) => normalizeComponentValue(coords[d.index], d.value)) },
+        { model, coords: colorDefs.map((d) => normalizeComponentValue(coords[d.index], d.value, normalized)) },
         { method, precision }
     );
 
     const result = new Array<number>(length);
     colorDefs.forEach((d, i) => {
-        result[d.index] = normalizeComponentValue(fitted[i], d.value);
+        result[d.index] = normalizeComponentValue(fitted[i], d.value, normalized);
     });
 
     if (alphaDef) {
-        const raw = normalizeComponentValue(coords[alphaDef.index] ?? 1, alphaDef.value);
-        result[alphaIndex] = applyPrecision(raw, precision, alphaDef.precision ?? 3);
+        const raw = normalizeComponentValue(coords[alphaDef.index] ?? 1, alphaDef.value, normalized);
+        result[alphaIndex] = Math.min(1, Math.max(0, applyPrecision(raw, precision, alphaDef.precision ?? 3)));
     }
 
     return result;

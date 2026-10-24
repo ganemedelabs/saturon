@@ -79,12 +79,11 @@ describe("Utilities", () => {
 
     it("should output strings with different options", () => {
         const hsl = parse("hsl(339 83 46 / 0.5)");
-        const lch = parse("lch(83 122 270)");
         const oklab = parse("oklab(0.18751241 0.22143 -0.398685234 / 0.5432)");
         const xyz = parse("color(xyz 1.4 0.3 -0.2)");
 
         expect(format(hsl, "hsl", { legacy: true })).toBe("hsla(339, 83%, 46%, 0.5)");
-        expect(format(lch, "lch", { units: true })).toBe("lch(83% 122 270deg)");
+        expect(format(hsl, "hsl", { units: true })).toBe("hsl(339deg 83% 46% / 0.5)");
         expect(format(oklab, "oklab", { precision: 1 })).toBe("oklab(0.2 0.2 -0.4 / 0.5)");
         expect(format(oklab, "oklab", { precision: undefined })).toBe("oklab(0.18751 0.22143 -0.39869 / 0.543)");
         expect(format(oklab, "oklab", { precision: null })).toBe("oklab(0.18751241 0.22143 -0.398685234 / 0.5432)");

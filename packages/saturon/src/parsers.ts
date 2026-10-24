@@ -41,7 +41,13 @@ export function evaluateComponent(
     if (token === "none") return NaN;
     if (token in base) return base[token];
 
-    const [min, max] = Array.isArray(expectedType) ? expectedType : expectedType === "percentage" ? [0, 100] : [0, 1];
+    const [min, max] = Array.isArray(expectedType)
+        ? expectedType
+        : {
+              percentage: [0, 100],
+              hue: [0, 360],
+              "alpha-value": [0, 1],
+          }[expectedType];
 
     if (/^-?(?:\d+|\d*\.\d+)$/.test(token)) {
         return parseFloat(token);
@@ -309,7 +315,9 @@ export const parsers = (() => {
                 (c, idx) => c.type === "<alpha-value>" || (idx === 5 && c.type === "literal" && c.value === "none")
             );
 
-            const targetAlpha = alphaNode ? evaluateComponent(alphaNode, [0, 1], baseEnv) : origin.coords[3];
+            const targetAlpha = alphaNode
+                ? evaluateComponent(alphaNode, [0, 1], { alpha: baseEnv.alpha })
+                : origin.coords[3];
 
             return {
                 model: origin.model,

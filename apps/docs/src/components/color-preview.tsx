@@ -38,7 +38,9 @@ export function ColorPreview({
         setHasError(false);
 
         try {
+            console.log({ color, renderModel, options });
             const converted = color.to(renderModel, options);
+            console.log({ converted });
 
             if (!cancelled) {
                 setDisplayColor(converted);

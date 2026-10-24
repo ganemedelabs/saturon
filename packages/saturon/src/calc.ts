@@ -3,11 +3,12 @@ import { ComponentDefinition } from "./converters.js";
 const UNIT_NUM = 1; // 001
 const UNIT_PCT = 2; // 010
 const UNIT_ANG = 4; // 100
+const UNIT_LEN = 8; // 1000
 
 /**
  * Represents the unit of a parsed CSS calculation value.
  */
-export type CalcUnitType = typeof UNIT_NUM | typeof UNIT_PCT | typeof UNIT_ANG;
+export type CalcUnitType = typeof UNIT_NUM | typeof UNIT_PCT | typeof UNIT_ANG | typeof UNIT_LEN;
 
 /**
  * Represents a lexical token parsed from a `calc()` expression.
@@ -38,6 +39,21 @@ export type CalcEvalResult = { value: number; unit: CalcUnitType };
 export type CalcParserState = {
     tokens: CalcToken[];
     pos: number;
+};
+
+/** Normalized lengths to px. em/rem assume the default 16px font size */
+export const LENGTH_TO_PX: Record<string, number> = {
+    px: 1,
+    cm: 96 / 2.54,
+    mm: 96 / 25.4,
+    q: 96 / 101.6,
+    in: 96,
+    pt: 96 / 72,
+    pc: 16,
+    em: 16,
+    rem: 16,
+    ex: 8,
+    ch: 8,
 };
 
 /** Math environment used by the `calc()` parser and evaluator. */
@@ -115,7 +131,7 @@ export function parseHue(str: string) {
  * @returns "angle", "percent", or "number".
  */
 export function getCalcUnitName(u: CalcUnitType): string {
-    return u === UNIT_ANG ? "angle" : u === UNIT_PCT ? "percent" : "number";
+    return u === UNIT_ANG ? "angle" : u === UNIT_PCT ? "percent" : u === UNIT_LEN ? "length" : "number";
 }
 
 /**
@@ -210,14 +226,15 @@ export function tokenizeCalcExpression(
                 i++;
             }
             while (i < s.length && /[0-9.]/.test(s[i])) numStr += s[i++];
-            if (i < s.length && /[eE]/.test(s[i])) {
-                numStr += s[i++];
-                if (/[+-]/.test(s[i])) numStr += s[i++];
-                while (i < s.length && /[0-9]/.test(s[i])) numStr += s[i++];
+            const expMatch = s.slice(i).match(/^[eE][+-]?[0-9]+/);
+            if (expMatch) {
+                numStr += expMatch[0];
+                i += expMatch[0].length;
             }
 
             let unitType: CalcUnitType = UNIT_NUM;
             let rawUnit = "";
+            let lengthUnit = "";
 
             if (s[i] === "%") {
                 unitType = UNIT_PCT;
@@ -229,6 +246,13 @@ export function tokenizeCalcExpression(
                     unitType = UNIT_ANG;
                     rawUnit = unitMatch[1];
                     i += rawUnit.length;
+                } else {
+                    const lenMatch = s.slice(i).match(/^(px|cm|mm|q|in|pt|pc|rem|em|ex|ch)\b/i);
+                    if (lenMatch) {
+                        unitType = UNIT_LEN;
+                        lengthUnit = lenMatch[1].toLowerCase();
+                        i += lenMatch[1].length;
+                    }
                 }
             }
 
@@ -237,6 +261,8 @@ export function tokenizeCalcExpression(
                 val = parsePercent(numStr + rawUnit, type, min, max);
             } else if (unitType === UNIT_ANG) {
                 val = parseHue(numStr + rawUnit);
+            } else if (unitType === UNIT_LEN) {
+                val *= LENGTH_TO_PX[lengthUnit];
             }
 
             out.push({ type: "number", value: val, unit: unitType });
@@ -416,10 +442,8 @@ export function evaluateCalcAST(
                 case "+":
                 case "-": {
                     const val = ast.op === "+" ? L.value + R.value : L.value - R.value;
-                    const unitMask = L.unit | R.unit;
 
                     if (L.unit === R.unit) return { value: val, unit: L.unit };
-                    if (unitMask === 5) return { value: val, unit: UNIT_ANG };
 
                     throw new Error(
                         `Cannot ${ast.op} mismatched units: ${getCalcUnitName(L.unit)} and ${getCalcUnitName(R.unit)}`
@@ -501,18 +525,20 @@ export function evaluateCalcAST(
                 return { value: val * (180 / Math.PI), unit: UNIT_ANG };
             }
 
-            const preserveUnitFuncs = ["min", "max", "clamp", "abs", "sign", "mod", "rem"];
+            if (fnName === "sign") {
+                return { value: val, unit: UNIT_NUM };
+            }
+
+            const preserveUnitFuncs = ["min", "max", "clamp", "abs", "mod", "rem"];
             if (preserveUnitFuncs.includes(fnName)) {
                 let combinedMask = 0;
-                for (let i = 0; i < evaluatedArgs.length; i++) {
-                    combinedMask |= evaluatedArgs[i].unit;
+                for (const a of evaluatedArgs) combinedMask |= a.unit;
+
+                if ((combinedMask & (combinedMask - 1)) !== 0) {
+                    throw new Error(`Function ${ast.func} cannot mix number, angle, and percent`);
                 }
 
-                if ((combinedMask & 6) === 6) throw new Error(`Function ${ast.func} cannot mix angle and percent`);
-                if ((combinedMask & 3) === 3) throw new Error(`Function ${ast.func} cannot mix number and percent`);
-
-                const finalUnit = combinedMask & UNIT_ANG ? UNIT_ANG : combinedMask & UNIT_PCT ? UNIT_PCT : UNIT_NUM;
-                return { value: val, unit: finalUnit };
+                return { value: val, unit: combinedMask as CalcUnitType };
             }
 
             return { value: val, unit: UNIT_NUM };
@@ -540,9 +566,17 @@ export function parseCalcExpression(
     min: number,
     max: number
 ) {
+    if (expr === "nan") return 0;
+
     const calcEnv = Object.assign({}, MATH_ENV, base);
     const tokens = tokenizeCalcExpression(expr, type, min, max);
     const ast = parseCalcTokens(tokens);
 
-    return evaluateCalcAST(ast, calcEnv).value;
+    const { value, unit } = evaluateCalcAST(ast, calcEnv);
+
+    if (unit === UNIT_LEN) throw new Error("calc() resolved to a length, which is invalid for a color component");
+
+    if (isNaN(value)) return 0;
+
+    return value;
 }

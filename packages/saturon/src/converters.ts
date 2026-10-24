@@ -257,14 +257,13 @@ export function RGB_to_HSL(rgb: number[]) {
  * @returns [R, G, B] each in range 0–255
  */
 export function HWB_to_RGB([h, w, b]: number[]) {
-    w /= 100;
-    b /= 100;
-    if (w + b >= 1) {
+    if (w + b >= 100) {
         const gray = (w / (w + b)) * 255;
         return [gray, gray, gray];
     }
-    const rgb = HSL_to_RGB([h, 100, 50]).map((c) => c / 255);
-    return rgb.map((v) => (v * (1 - w - b) + w) * 255);
+    const rgb = HSL_to_RGB([h, 100, 50]);
+    const scale = 100 - w - b;
+    return rgb.map((v) => (v * scale + 255 * w) / 100);
 }
 
 /**
@@ -589,7 +588,7 @@ export const colorModels = {
     lab: {
         targetGamut: null,
         components: {
-            l: { index: 0, value: "percentage", precision: 5 },
+            l: { index: 0, value: [0, 100], precision: 5 },
             a: { index: 1, value: [-125, 125], precision: 5 },
             b: { index: 2, value: [-125, 125], precision: 5 },
             alpha: { index: 3, value: "alpha-value", precision: 3 },
@@ -601,7 +600,7 @@ export const colorModels = {
     lch: {
         targetGamut: null,
         components: {
-            l: { index: 0, value: "percentage", precision: 5 },
+            l: { index: 0, value: [0, 100], precision: 5 },
             c: { index: 1, value: [0, 150], precision: 5 },
             h: { index: 2, value: "hue", precision: 5 },
             alpha: { index: 3, value: "alpha-value", precision: 3 },

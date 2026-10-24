@@ -108,6 +108,17 @@ Parses any valid CSS color string, named color, or complex function (like `color
 
 ---
 
+## Static `Color.computed()` [#computed]
+
+Computes a color value from a string input, returning a string output in the most appropriate format. This is useful for parsing and serializing complex CSS color functions like `color-mix()` or relative colors.
+
+<Callout type="info">
+    This is a wrapper around the standalone `computed()` function from `"saturon/computed"`. [See `computed()`
+    documentation](/docs/api/subpaths/computed) for details.
+</Callout>
+
+---
+
 ## Static `Color.isValid()` [#isValid]
 
 A static helper to quickly determine if a string is a valid, parseable CSS color without throwing an error or instantiating a class.

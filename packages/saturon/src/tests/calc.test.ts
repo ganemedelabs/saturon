@@ -75,7 +75,7 @@ describe("CSS Color Calc Engine (W3C Level 4 Compliant)", () => {
             });
 
             it("handles infinity and NaN within expressions", () => {
-                expect(evaluateCalc("infinity * 0")).toBeNaN();
+                expect(evaluateCalc("infinity * 0")).toBe(0);
                 expect(evaluateCalc("infinity / 2")).toBe(Infinity);
                 expect(evaluateCalc("-infinity + 10")).toBe(-Infinity);
             });

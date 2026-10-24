@@ -73,15 +73,16 @@ function unregister<T RegistererType extends>(
 
 ## Supported Categories (`RegistererType`)
 
-| Category         | Description                                                                                       | Example Payload Value                    |
-| ---------------- | ------------------------------------------------------------------------------------------------- | ---------------------------------------- |
-| `"named-colors"` | Registers custom CSS color keyword names mapped to 3-channel RGB arrays `[r, g, b]`.              | `[10, 100, 240]`                         |
-| `"color-models"` | Injects custom color model definitions with channel specs and bridge conversion methods.          | `ColorModelConverter`                    |
-| `"color-spaces"` | Injects custom matrix-based linear color spaces (e.g., matrix conversions to/from bridge models). | `ColorSpaceConverter`                    |
-| `"parsers"`      | Injects custom grammar rules or validation syntax targets into the parser AST pipeline.           | `GrammarRuleSpec`                        |
-| `"formatters"`   | Registers custom color output formatting functions.                                               | `ColorFormatter`                         |
-| `"shortcuts"`    | Injects high-speed regex or functional string parsing shortcuts.                                  | `{ parse: Shortcut, appendTo?: string }` |
-| `"fit-methods"`  | Registers custom gamut clipping or mapping algorithms.                                            | `(coords, targetSpace) => number[]`      |
+| Category           | Description                                                                                       | Example Payload Value                    |
+| ------------------ | ------------------------------------------------------------------------------------------------- | ---------------------------------------- |
+| `"named-colors"`   | Registers custom CSS color keyword names mapped to 3-channel RGB arrays `[r, g, b]`.              | `[10, 100, 240]`                         |
+| `"color-models"`   | Injects custom color model definitions with channel specs and bridge conversion methods.          | `ColorModelConverter`                    |
+| `"color-spaces"`   | Injects custom matrix-based linear color spaces (e.g., matrix conversions to/from bridge models). | `ColorSpaceConverter`                    |
+| `"parsers"`        | Injects custom grammar rules or validation syntax targets into the parser AST pipeline.           | `GrammarRuleSpec`                        |
+| `"formatters"`     | Registers custom color output formatting functions.                                               | `ColorFormatter`                         |
+| `"shortcuts"`      | Injects high-speed regex or functional string parsing shortcuts.                                  | `{ parse: Shortcut, appendTo?: string }` |
+| `"fit-methods"`    | Registers custom gamut clipping or mapping algorithms.                                            | `(coords, targetSpace) => number[]`      |
+| `"computed-rules"` | Registers custom computed-value rules for serialization.                                          | `ComputedRule`                           |
 
 ---
 

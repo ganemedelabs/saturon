@@ -95,12 +95,11 @@ describe("Color", () => {
 
     it("should output strings with different options", () => {
         const hsl = Color.from("hsl(339 83 46 / 0.5)");
-        const lch = Color.from("lch(83 122 270)");
         const oklab = Color.from("oklab(0.18751241 0.22143 -0.398685234 / 0.5432)");
         const xyz = Color.from("color(xyz 1.4 0.3 -0.2)");
 
         expect(hsl.toString({ legacy: true })).toBe("hsla(339, 83%, 46%, 0.5)");
-        expect(lch.toString({ units: true })).toBe("lch(83% 122 270deg)");
+        expect(hsl.toString({ units: true })).toBe("hsl(339deg 83% 46% / 0.5)");
         expect(oklab.toString({ precision: 1 })).toBe("oklab(0.2 0.2 -0.4 / 0.5)");
         expect(oklab.toString({ precision: undefined })).toBe("oklab(0.18751 0.22143 -0.39869 / 0.543)");
         expect(oklab.toString({ precision: null })).toBe("oklab(0.18751241 0.22143 -0.398685234 / 0.5432)");

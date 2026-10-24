@@ -19,6 +19,7 @@ import { interpolate } from "./interpolate.js";
 import { scale, ScaleOptions } from "./scale.js";
 import { get, Getter, getters } from "./getters.js";
 import { getLayout } from "./layout.js";
+import { computed } from "./computed.js";
 
 /** Signature for a plugin function that augments the Color class at runtime. */
 export type Plugin = (colorClass: typeof Color) => void; // eslint-disable-line no-unused-vars
@@ -161,6 +162,17 @@ export class Color<M extends ColorModel = ColorModel> {
      */
     static isValid(color: string, options: IsValidOptions = {}): boolean {
         return isValid(color, options);
+    }
+
+    /**
+     * Compute a color value from a string input, returning a string output in the most appropriate format.
+     *
+     * @param color - The input color string to compute.
+     * @returns The computed color string in the most appropriate format.
+     * @throws If no computed rule matches the input color.
+     */
+    static computed(color: string): string {
+        return computed(color);
     }
 
     /**

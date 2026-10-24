@@ -4,27 +4,80 @@ icon: ShieldCheck
 description: How Saturon is tested against the Web Platform Tests, how it compares with other color libraries, and the known gaps
 ---
 
-Saturon's parser is built from the CSS color grammar rather than a set of per-format patterns. The most direct way to check that claim is to run it against the same tests browsers use.
+import { ConformanceChart } from "@/components/conformance-chart";
 
-The conformance script clones the [web-platform-tests](https://github.com/web-platform-tests/wpt) (WPT) repository, the shared cross-browser test suite for the web platform, and runs the color strings from its CSS color parsing tests through Saturon. Each string is expected to be either valid or invalid, and the parser has to agree. The same strings are run through [chroma-js](https://github.com/gka/chroma.js), [colorjs.io](https://github.com/color-js/color.js/) and [culori](https://github.com/evercoder/culori) so the numbers have something to be compared against.
+Saturon's parser is built from the CSS color grammar rather than a set of per-format patterns. The most direct way to check that claim is to run it against the same tests browsers use.
+The conformance script clones the [web-platform-tests](https://github.com/web-platform-tests/wpt) (WPT) repository, the shared cross-browser test suite for the web platform, and runs the color strings from its CSS color parsing tests through Saturon. Each string is expected to be valid, invalid, or to resolve to a specific computed value, and the library has to agree. The same strings are run through [chroma-js](https://github.com/gka/chroma.js), [colorjs.io](https://github.com/color-js/color.js/) and [culori](https://github.com/evercoder/culori) so the numbers have something to be compared against.
 
 ## Current results
 
-| Library    | Valid accepted    | Invalid rejected | Overall           |
-| ---------- | ----------------- | ---------------- | ----------------- |
-| Saturon    | 1045/1285 (81.3%) | 804/811 (99.1%)  | 1849/2096 (88.2%) |
-| colorjs.io | 964/1285 (75.0%)  | 759/811 (93.6%)  | 1723/2096 (82.2%) |
-| culori     | 876/1285 (68.2%)  | 779/811 (96.1%)  | 1655/2096 (79.0%) |
-| chroma-js  | 394/1285 (30.7%)  | 768/811 (94.7%)  | 1162/2096 (55.4%) |
+These numbers use only what ships in the package. Nothing extra is registered in Saturon.
 
-- **WPT commit:** [`a15a314`](https://github.com/web-platform-tests/wpt/commit/a15a3144858f9e81c11abf28858be4cd2a64e80e)
-- **Saturon version:** `v0.4.4`
-- **Last run:** `October 17, 2026`
+<ConformanceChart
+    data={[
+        {
+            name: "Saturon",
+            valid: 73.7,
+            invalid: 99.8,
+            computed: 88.3,
+            counts: { valid: "523/710", invalid: "809/811", computed: "848/960" },
+        },
+        {
+            name: "colorjs.io",
+            valid: 57.0,
+            invalid: 93.6,
+            computed: 21.1,
+            counts: { valid: "405/710", invalid: "759/811", computed: "203/960" },
+        },
+        {
+            name: "culori",
+            valid: 47.3,
+            invalid: 96.1,
+            computed: 39.6,
+            counts: { valid: "336/710", invalid: "779/811", computed: "380/960" },
+        },
+        {
+            name: "chroma-js",
+            valid: 13.0,
+            invalid: 94.7,
+            computed: 0.0,
+            counts: { valid: "92/710", invalid: "768/811", computed: "0/960" },
+        },
+    ]}
+/>
 
-<Callout type="warn" title="Level 6 isn't supported yet">
-    Many of the 247 cases Saturon doesn't pass use syntax from the [CSS Color Module Level
-    6](https://www.w3.org/TR/css-color-6/) draft, most visibly `color-layers()`. Saturon targets [Levels 4 and
-    5](https://www.w3.org/TR/css-color-5/) today. Level 6 support may be added in the future.
+- **WPT commit:** [`6f22f9eab8`](https://github.com/web-platform-tests/wpt/commit/6f22f9eab8)
+- **Saturon version:** `v0.4.7`
+- **Last run:** `October 23, 2026`
+
+<Callout type="info" title="Most of the misses come from CSS Color Level 6">
+    Saturon's built-in parser targets [Levels 4 and 5](https://www.w3.org/TR/css-color-5/). Most of the cases it misses
+    use syntax from the [CSS Color Module Level 6](https://www.w3.org/TR/css-color-6/) draft, most visibly
+    `color-layers()`. Those are intentionally not built in, but they can be registered. With the Level 6 recipes
+    registered, Saturon's results become:
+
+    <ConformanceChart
+        data={[
+             {
+                name: "Saturon",
+                valid: 73.7,
+                invalid: 99.8,
+                computed: 88.3,
+                counts: { valid: "523/710", invalid: "809/811", computed: "848/960" },
+            },
+                {
+                name: "Saturon (+ Level 6 recipes)",
+                valid: 100.0,
+                invalid: 99.8,
+                computed: 93.0,
+                counts: { valid: "710/710", invalid: "809/811", computed: "893/960" },
+            },
+        ]}
+    />
+
+    The recipes used are [`color-layers()`](/docs/recipes/css-color-6/color-layers) and
+    [`display-p3-linear`](/docs/recipes/css-color-6/display-p3-linear).
+
 </Callout>
 
 ### Reading the numbers
@@ -33,15 +86,13 @@ The three columns answer different questions:
 
 - **Valid accepted** is how many of the strings a browser accepts the library also accepts.
 - **Invalid rejected** is how many of the strings a browser throws away the library also rejects.
-- **Overall** is both combined.
+- **Computed match** is how many of the strings resolve to the exact same computed value a browser reports.
 
-Both directions matter. A lenient parser can accept every valid string and still accept strings a browser would discard, which is why the invalid column is reported separately.
-
-Saturon's 247 misses split into 240 valid strings it rejects and 7 invalid strings it accepts.
+Both parsing directions matter. A lenient parser can accept every valid string and still accept strings a browser would discard, which is why the invalid column is reported separately.
 
 <Callout type="info" title="A syntax test, not a feature comparison">
     These libraries don't all aim to cover the full CSS Color grammar. chroma-js in particular targets a smaller set of
-    formats, so its low valid score mostly reflects syntax it was never meant to parse. The table shows how closely each
+    formats, so its low scores mostly reflect syntax it was never meant to parse. The table shows how closely each
     library follows browser parsing, not which one is better.
 </Callout>
 
@@ -49,34 +100,27 @@ Saturon's 247 misses split into 240 valid strings it rejects and 7 invalid strin
 
 The script lives at [`apps/conformance/wpt.mjs`](https://github.com/ganemedelabs/saturon/blob/main/apps/conformance/wpt.mjs). It clones WPT (shallow and sparse, only `css/css-color`) and reads every `.html` file in `css/css-color/parsing`. Each file's inline scripts are evaluated in a sandbox that records calls to WPT's `test_valid_value`, `test_invalid_value`, and `test_computed_value` helpers. Only cases for the `color` property are kept.
 
-Two kinds of cases are left out because they can't be judged from the string alone:
-
-- Strings containing `var()`
-- Strings containing `currentcolor`
+Some kinds of cases are left out because they can't be judged from the string alone, such as: `var()`, `currentcolor`, `sibling-index()` or `sibling-count()`.
 
 Duplicate cases (the same string with the same expected result) are counted once, so a string that appears in several WPT files doesn't count several times.
 
-The 2096 cases that remain break down like this:
-
-| Expected | Cases | Comes from                                   |
-| -------- | ----- | -------------------------------------------- |
-| Valid    | 1285  | `test_valid_value` and `test_computed_value` |
-| Invalid  | 811   | `test_invalid_value`                         |
-
-`test_computed_value` cases are treated as valid, since all that's checked is whether the string is accepted.
-
 ### How each library is asked
 
-Every library is given the same string and has to say whether it parses:
+For valid and invalid cases, every library is given the same string and has to say whether it parses it or throws. For computed cases, each library is asked to produce a CSS string for the input and it is compared to the value WPT expects.
 
-| Library    | Counts as valid when                                     |
-| ---------- | -------------------------------------------------------- |
-| Saturon    | `Color.isValid(string)` returns `true`                   |
-| chroma-js  | `chroma.valid(string)` returns `true`                    |
-| colorjs.io | `new Color(string)` doesn't throw                        |
+| Library    | Counts as valid when                                     | Computed value comes from      |
+| ---------- | -------------------------------------------------------- | ------------------------------ |
+| Saturon    | `Color.isValid(string)` returns `true`                   | `Color.computed(string)`       |
+| chroma-js  | `chroma.valid(string)` returns `true`                    | `chroma(string).css()`         |
+| colorjs.io | `new Color(string)` doesn't throw                        | `new Color(string).toString()` |
 | culori     | `parse(string)` returns something other than `undefined` |
 
-A library that throws on an input counts as having rejected it.
+<Callout type="info" title="Computed values are tricky">
+    Saturon has a dedicated function for this, [`Color.computed()`](/docs/api/color/computed), which resolves a color
+    string to its computed value the way a browser does. The other libraries have no equivalent, so the closest
+    serialization they offer is used, and a library that throws counts as a mismatch. This is part of why their computed
+    scores are low: they weren't built to produce browser-style computed values.
+</Callout>
 
 ## What is tested
 
@@ -84,6 +128,7 @@ Each case checks one direction of the grammar:
 
 - Valid strings must be accepted. For example `rgb(none none none / .5)` and `rgb(calc(infinity), 0, 0)`.
 - Invalid strings must be rejected. For example `rgb(none, none, none)` (legacy comma syntax can't use `none`) and `rgb(10%, 20, 30%)` (legacy syntax can't mix percentages and numbers).
+- Computed strings must resolve to the exact value a browser reports.
 
 The tests cover, among others:
 
@@ -93,15 +138,16 @@ The tests cover, among others:
 - `color-mix()`
 - Relative color syntax, including nested origin colors and channel keywords
 - The `none` keyword, and `calc()` with `infinity` and `NaN`
+- CSS Color Level 6 syntax such as `color-layers()` (only passes with the Level 6 recipes registered)
 
 ## What isn't tested
 
-This only checks validity: whether a string is accepted or rejected. It does not check the computed values or serialized output of a parsed color. WPT uses its computed-value cases to check what a browser resolves a color to, but here they only have to be accepted as valid. Passing means a library agrees with browsers about what is valid CSS color syntax, not that every conversion matches a browser to the last digit.
+Computed cases compare the serialized string only. Passing means the library produced the same text a browser does, not that every internal conversion matches to the last digit.
 
 It also leaves out:
 
 - Cases for properties other than `color` (`background-color` and `opacity`)
-- The `var()` and `currentcolor` cases listed above
+- The `var()`, `currentcolor`, `sibling-index()` and `sibling-count()` cases listed above
 - Everything outside `css/css-color/parsing`
 
 ## Run it yourself
@@ -119,14 +165,15 @@ Flags are passed through to the script:
 
 ```bash
 pnpm conformance:wpt --verbose              # list every string each library got wrong, colorized
-pnpm conformance:wpt --all                  # include the var() and currentcolor cases
-pnpm conformance:wpt --json                 # also write results to conformance-results.json
+pnpm conformance:wpt --all                  # include the var(), currentcolor and sibling-*() cases
+pnpm conformance:wpt --level-6              # register the Level 6 recipes in Saturon before testing
+pnpm conformance:wpt --json                 # also write results to results.json
 pnpm conformance:wpt --json=out/results.json
 ```
 
 To reuse an existing WPT checkout instead of cloning, set `WPT_DIR` to its path. Set `NO_COLOR=1` to turn off colored output.
 
-The script always clones the latest WPT, so results can change as WPT adds or edits cases. The numbers on this page come from the commit listed above, so a run today may not match them exactly.
+The script prints the WPT commit it ran against. Without `WPT_DIR` it always clones the latest WPT, so results can change as WPT adds or edits cases. The numbers on this page come from the commit listed above, so a run today may not match them exactly.
 
 ## Found a disagreement?
 

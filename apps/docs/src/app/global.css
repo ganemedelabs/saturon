@@ -6,10 +6,18 @@
 :root {
     --primary-hue: 160;
     --color-fd-primary: oklch(60% 0.25 var(--primary-hue));
+
+    --chart-valid: var(--color-fd-primary);
+    --chart-invalid: oklch(60% 0.25 calc(var(--primary-hue) + 120));
+    --chart-computed: oklch(60% 0.25 calc(var(--primary-hue) + 240));
 }
 
 .dark {
     --color-fd-primary: oklch(75% 0.2 var(--primary-hue));
+
+    --chart-valid: var(--color-fd-primary);
+    --chart-invalid: oklch(75% 0.2 calc(var(--primary-hue) + 120));
+    --chart-computed: oklch(75% 0.2 calc(var(--primary-hue) + 240));
 }
 
 body {
@@ -105,4 +113,17 @@ option {
         animation: none !important;
         transition: none !important;
     }
+}
+
+.recharts-wrapper .recharts-cartesian-axis-tick-value {
+    fill: var(--color-fd-muted-foreground);
+}
+
+.recharts-wrapper .recharts-label-list text,
+.recharts-wrapper .recharts-label {
+    fill: var(--color-fd-foreground);
+}
+
+.recharts-wrapper .recharts-legend-item-text {
+    color: var(--color-fd-foreground) !important;
 }

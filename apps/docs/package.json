@@ -1,6 +1,6 @@
 {
     "name": "saturon-docs",
-    "version": "0.4.9",
+    "version": "0.4.10",
     "private": true,
     "scripts": {
         "build": "next build",
@@ -22,6 +22,7 @@
         "react": "^19.2.8",
         "react-color": "^2.19.3",
         "react-dom": "^19.2.8",
+        "recharts": "^3.10.1",
         "rehype-katex": "^7.0.1",
         "remark-math": "^6.0.0",
         "saturon": "workspace:*"

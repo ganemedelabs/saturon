@@ -286,12 +286,10 @@ describe("Color registration system", () => {
             {
                 name: "fluid-volume",
                 value: {
-                    bridge: "srgb",
+                    bridge: "rgb",
                     fromBridge: (coords: number[]) => coords,
                     format: (coords: number[]) => {
-                        const r = Math.round(coords[0] * 255);
-                        const g = Math.round(coords[1] * 255);
-                        const b = Math.round(coords[2] * 255);
+                        const [r, g, b] = coords;
                         const sum = r + g + b;
 
                         if (sum === 0) return "fluid-volume()";
@@ -321,7 +319,7 @@ describe("Color registration system", () => {
         const black = new Color("rgb", [0, 0, 0, 1]);
         expect(black.to("fluid-volume")).toBe("fluid-volume()");
 
-        const orange = new Color("srgb", [255, 128, 0, 1]); // sum = 255 + 128 = 383
+        const orange = new Color("rgb", [255, 128, 0, 1]); // sum = 255 + 128 = 383
         // R ratio: 255/383 * 20 ≈ 13.31 -> 13 chars
         // G ratio: 128/383 * 20 ≈ 6.68 -> 7 chars
         expect(orange.to("fluid-volume")).toBe("fluid-volume(RRRRRRRRRRRRRGGGGGGG)");

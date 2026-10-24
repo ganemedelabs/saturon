@@ -3,7 +3,6 @@ import { ColorModel, ColorModelConverter, colorModels, colorSpaces } from "./con
 import { ParseNode } from "./syntax.js";
 import { FitMethod, applyPrecision, fit } from "./fitMethods.js";
 import { namedColors } from "./namedColors.js";
-import { toArray } from "./toArray.js";
 import { Validator } from "./validators.js";
 import { getLayout } from "./layout.js";
 
@@ -17,6 +16,9 @@ export type ComponentOptions = {
 
     /** Overrides the auto precision of the output color components, or `null` to disable rounding. */
     precision?: number | null;
+
+    /** Normalizes NaN and Infinity values to the expected range for each component. Defaults to `true`. */
+    normalized?: boolean;
 };
 
 /** Options for formatting color components. */
@@ -91,18 +93,23 @@ export function createColorFormatter(model: string, converter: ColorModelConvert
             return result;
         },
         format: (coords: number[], options: FormattingOptions = {}) => {
-            const { legacy = false, fit: fitMethod = config.defaults.fit, precision, units = false } = options;
+            const { legacy = false, units = false } = options;
 
-            const values = toArray({ model: model as ColorModel, coords }, { fit: fitMethod as FitMethod, precision });
+            const formatValue = (v: number, suffix = "") => {
+                if (Number.isNaN(v)) return "none";
+                if (v === Infinity) return "calc(infinity)";
+                if (v === -Infinity) return "calc(-infinity)";
+                return `${v}${suffix}`;
+            };
 
-            const alpha = alphaIndex !== -1 ? values[alphaIndex] : 1;
-            const alphaStr = String(alpha);
+            const alpha = alphaIndex !== -1 ? coords[alphaIndex] : 1;
+            const alphaStr = formatValue(alpha);
 
             const f = nonAlphaComponents.map((c) => {
-                const v = values[c.index];
-                if (c.value === "percentage" && (units || legacy)) return `${v}%`;
-                if (c.value === "hue" && units) return `${v}deg`;
-                return String(v);
+                const v = coords[c.index];
+                if (c.value === "percentage" && (units || legacy)) return formatValue(v, "%");
+                if (c.value === "hue" && units) return formatValue(v, "deg");
+                return formatValue(v);
             });
 
             if (model in colorSpaces) return `color(${model} ${f.join(" ")}${alpha !== 1 ? ` / ${alphaStr}` : ""})`;
