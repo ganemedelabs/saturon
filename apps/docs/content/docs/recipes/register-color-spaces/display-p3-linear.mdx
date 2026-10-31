@@ -7,7 +7,7 @@ description: A recipe to register the Linear Display P3 color space in Saturon.
 
 ```ts title="src/index.ts"
 import { Color } from "saturon";
-import { MATRICES } from "saturon/matrices";
+import { Matrices } from "saturon/matrices";
 
 /**
  * @see {@link https://www.w3.org/TR/css-color-4/|CSS Color Module Level 4}
@@ -18,8 +18,8 @@ Color.register("color-spaces", [
         value: {
             components: ["r", "g", "b"],
             bridge: "xyz-d65",
-            toBridgeMatrix: MATRICES.P3_to_XYZD65,
-            fromBridgeMatrix: MATRICES.XYZD65_to_P3,
+            toBridgeMatrix: Matrices.P3_TO_XYZD65,
+            fromBridgeMatrix: Matrices.XYZD65_TO_P3,
         },
     },
 ]);

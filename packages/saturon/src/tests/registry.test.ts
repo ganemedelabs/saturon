@@ -1,5 +1,5 @@
 import { Color } from "../Color.js";
-import { MATRICES } from "../matrices.js";
+import { Matrices } from "../matrices.js";
 import { ColorModel, ColorModelConverter, colorModels, ColorSpace, multiplyMatrices } from "../converters.js";
 import { fit, FitMethod } from "../fitMethods.js";
 import { parseNode, ParseNode } from "../syntax.js";
@@ -55,8 +55,8 @@ describe("Color registration system", () => {
                         if (absE <= 1 / 12) return sign * Math.sqrt(3 * absE);
                         return sign * (a * Math.log(12 * absE - b) + c1);
                     },
-                    toBridgeMatrix: MATRICES.REC2020_to_XYZD65,
-                    fromBridgeMatrix: MATRICES.XYZD65_to_REC2020,
+                    toBridgeMatrix: Matrices.REC2020_TO_XYZD65,
+                    fromBridgeMatrix: Matrices.XYZD65_TO_REC2020,
                 },
             },
         ]);
@@ -109,8 +109,8 @@ describe("Color registration system", () => {
                         const c3 = 2392 / 2 ** 7;
                         return Math.pow((c1 + c2 * Math.pow(x, n)) / (1 + c3 * Math.pow(x, n)), m);
                     },
-                    toBridgeMatrix: MATRICES.REC2020_to_XYZD65,
-                    fromBridgeMatrix: MATRICES.XYZD65_to_REC2020,
+                    toBridgeMatrix: Matrices.REC2020_TO_XYZD65,
+                    fromBridgeMatrix: Matrices.XYZD65_TO_REC2020,
                 },
             },
         ]);

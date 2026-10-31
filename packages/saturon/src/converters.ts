@@ -1,4 +1,4 @@
-import { MATRICES } from "./matrices.js";
+import { Matrices } from "./matrices.js";
 
 /** Represents the available `<color-function>`s. */
 export type ColorFunction = keyof typeof colorModels;
@@ -188,7 +188,7 @@ export function RGB_to_XYZD65(rgb: number[]) {
             abs = Math.abs(n);
         return abs <= 0.04045 ? n / 12.92 : sign * ((abs + 0.055) / 1.055) ** 2.4;
     });
-    return multiplyMatrices(MATRICES.SRGB_to_XYZD65, lin_sRGB);
+    return multiplyMatrices(Matrices.SRGB_TO_XYZD65, lin_sRGB);
 }
 
 /**
@@ -198,7 +198,7 @@ export function RGB_to_XYZD65(rgb: number[]) {
  * @returns [R, G, B] each in range 0–255
  */
 export function XYZD65_to_RGB(xyz: number[]) {
-    const linRGB = multiplyMatrices(MATRICES.XYZD65_to_SRGB, xyz);
+    const linRGB = multiplyMatrices(Matrices.XYZD65_TO_SRGB, xyz);
     const gammaRGB = linRGB.map((v) => {
         const sign = v < 0 ? -1 : 1,
             abs = Math.abs(v);
@@ -353,10 +353,10 @@ export function LAB_to_LCH([L, a, b]: number[]) {
  * @returns [X, Y, Z] in range 0–1
  */
 export function OKLAB_to_XYZD65(oklab: number[]) {
-    const { LMS_to_XYZD65, OKLAB_to_LMS } = MATRICES;
-    const LMSnl = multiplyMatrices(OKLAB_to_LMS, oklab);
+    const { LMS_TO_XYZD65, OKLAB_TO_LMS } = Matrices;
+    const LMSnl = multiplyMatrices(OKLAB_TO_LMS, oklab);
     return multiplyMatrices(
-        LMS_to_XYZD65,
+        LMS_TO_XYZD65,
         LMSnl.map((c) => c ** 3)
     );
 }
@@ -368,9 +368,9 @@ export function OKLAB_to_XYZD65(oklab: number[]) {
  * @returns [L, a, b] where L ∈ [0, 1], a ∈ [-0.4, 0.4], b ∈ [-0.4, 0.4]
  */
 export function XYZD65_to_OKLAB(xyz: number[]) {
-    const { XYZD65_to_LMS, LMS_to_OKLAB } = MATRICES;
-    const LMS = multiplyMatrices(XYZD65_to_LMS, xyz);
-    return multiplyMatrices(LMS_to_OKLAB, LMS.map(Math.cbrt));
+    const { XYZD65_TO_LMS, LMS_TO_OKLAB } = Matrices;
+    const LMS = multiplyMatrices(XYZD65_TO_LMS, xyz);
+    return multiplyMatrices(LMS_TO_OKLAB, LMS.map(Math.cbrt));
 }
 
 /**
@@ -418,14 +418,14 @@ export const colorSpaces = {
             if (abs > 0.0031308) return sign * (1.055 * Math.pow(abs, 1 / 2.4) - 0.055);
             return sign * (12.92 * abs);
         },
-        toBridgeMatrix: MATRICES.SRGB_to_XYZD65,
-        fromBridgeMatrix: MATRICES.XYZD65_to_SRGB,
+        toBridgeMatrix: Matrices.SRGB_TO_XYZD65,
+        fromBridgeMatrix: Matrices.XYZD65_TO_SRGB,
     }),
     "srgb-linear": spaceConverterToModelConverter("srgb-linear", {
         components: ["r", "g", "b"],
         bridge: "xyz-d65",
-        toBridgeMatrix: MATRICES.SRGB_to_XYZD65,
-        fromBridgeMatrix: MATRICES.XYZD65_to_SRGB,
+        toBridgeMatrix: Matrices.SRGB_TO_XYZD65,
+        fromBridgeMatrix: Matrices.XYZD65_TO_SRGB,
     }),
     "display-p3": spaceConverterToModelConverter("display-p3", {
         components: ["r", "g", "b"],
@@ -442,8 +442,8 @@ export const colorSpaces = {
             if (abs > 0.0031308) return sign * (1.055 * Math.pow(abs, 1 / 2.4) - 0.055);
             return sign * (12.92 * abs);
         },
-        toBridgeMatrix: MATRICES.P3_to_XYZD65,
-        fromBridgeMatrix: MATRICES.XYZD65_to_P3,
+        toBridgeMatrix: Matrices.P3_TO_XYZD65,
+        fromBridgeMatrix: Matrices.XYZD65_TO_P3,
     }),
     rec2020: spaceConverterToModelConverter("rec2020", {
         components: ["r", "g", "b"],
@@ -464,8 +464,8 @@ export const colorSpaces = {
             if (abs > β) return sign * (α * Math.pow(abs, 0.45) - (α - 1));
             return sign * (4.5 * abs);
         },
-        toBridgeMatrix: MATRICES.REC2020_to_XYZD65,
-        fromBridgeMatrix: MATRICES.XYZD65_to_REC2020,
+        toBridgeMatrix: Matrices.REC2020_TO_XYZD65,
+        fromBridgeMatrix: Matrices.XYZD65_TO_REC2020,
     }),
     "a98-rgb": spaceConverterToModelConverter("a98-rgb", {
         components: ["r", "g", "b"],
@@ -480,8 +480,8 @@ export const colorSpaces = {
             const abs = Math.abs(c);
             return sign * Math.pow(abs, 256 / 563);
         },
-        toBridgeMatrix: MATRICES.A98_to_XYZD65,
-        fromBridgeMatrix: MATRICES.XYZD65_to_A98,
+        toBridgeMatrix: Matrices.A98_TO_XYZD65,
+        fromBridgeMatrix: Matrices.XYZD65_TO_A98,
     }),
     "prophoto-rgb": spaceConverterToModelConverter("prophoto-rgb", {
         components: ["r", "g", "b"],
@@ -500,8 +500,8 @@ export const colorSpaces = {
             if (abs >= Et) return sign * Math.pow(abs, 1 / 1.8);
             return sign * (16 * abs);
         },
-        toBridgeMatrix: MATRICES.ProPhoto_to_XYZD50,
-        fromBridgeMatrix: MATRICES.XYZD50_to_ProPhoto,
+        toBridgeMatrix: Matrices.PROPHOTO_TO_XYZD50,
+        fromBridgeMatrix: Matrices.XYZD50_TO_PROPHOTO,
     }),
     "xyz-d65": spaceConverterToModelConverter("xyz-d65", {
         targetGamut: null,
@@ -522,8 +522,8 @@ export const colorSpaces = {
         targetGamut: null,
         components: ["x", "y", "z"],
         bridge: "xyz-d65",
-        toBridgeMatrix: MATRICES.D50_to_D65,
-        fromBridgeMatrix: MATRICES.D65_to_d50,
+        toBridgeMatrix: Matrices.D50_TO_D65,
+        fromBridgeMatrix: Matrices.D65_TO_D50,
     }),
     xyz: spaceConverterToModelConverter("xyz", {
         targetGamut: null,

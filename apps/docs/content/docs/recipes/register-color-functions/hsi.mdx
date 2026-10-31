@@ -24,7 +24,7 @@ Color.register("color-models", [
             bridge: "rgb",
             toBridge: (hsi: number[]) => {
                 const [h, s, i] = hsi.map((c, i) => (i === 0 ? c : c / 100));
-                const H = (h % 360) * (Math.PI / 180);
+                let H = (h % 360) * (Math.PI / 180);
                 let r, g, b;
                 if (H < (2 * Math.PI) / 3) {
                     b = i * (1 - s);
