@@ -1,8 +1,10 @@
-// @ts-ignore
-import "@/app/global.css";
 import { Providers } from "@/app/providers";
 import { Metadata } from "next";
 import { JetBrains_Mono } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
+
+// @ts-ignore
+import "@/app/global.css";
 
 const jetBrainsMono = JetBrains_Mono({
     subsets: ["latin"],
@@ -65,6 +67,7 @@ export default function Layout({ children }: LayoutProps<"/">) {
             </head>
             <body className="[&_figure]:bg-fd-card flex min-h-screen flex-col overflow-x-hidden">
                 <Providers>{children}</Providers>
+                <Analytics />
             </body>
         </html>
     );

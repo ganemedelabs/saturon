@@ -1,6 +1,6 @@
 {
     "name": "saturon-docs",
-    "version": "0.4.11",
+    "version": "0.4.12",
     "private": true,
     "scripts": {
         "build": "next build",
@@ -11,6 +11,7 @@
         "lint:fix": "eslint . --fix"
     },
     "dependencies": {
+        "@vercel/analytics": "^2.0.1",
         "cnfast": "^0.1.0",
         "fumadocs-core": "16.14.3",
         "fumadocs-mdx": "15.2.3",
