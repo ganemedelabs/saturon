@@ -47,14 +47,14 @@
         "@eslint/js": "^10.0.1",
         "@types/jest": "^30.0.0",
         "@types/node": "^24.13.6",
-        "esbuild": "^0.25.11",
+        "esbuild": "^0.28.2",
         "eslint": "^10.3.0",
         "jest": "^30.2.0",
         "jiti": "^2.7.0",
-        "prettier": "^3.9.8",
-        "ts-jest": "^29.4.4",
+        "prettier": "^3.10.1",
+        "ts-jest": "^29.4.15",
         "ts-node": "^10.9.2",
         "typescript": "^5.9.3",
-        "typescript-eslint": "^8.59.2"
+        "typescript-eslint": "^8.73.0"
     }
 }
