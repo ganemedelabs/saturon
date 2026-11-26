@@ -17,7 +17,7 @@
     },
     "packageManager": "pnpm@9.0.0",
     "devDependencies": {
-        "@types/node": "^26.6.2",
+        "@types/node": "^26.6.6",
         "globals": "^17.13.0"
     }
 }
